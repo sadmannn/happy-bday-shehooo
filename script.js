@@ -114,10 +114,52 @@ const animationContainer = document.createElement('div');
 animationContainer.className = 'animation-container';
 document.body.appendChild(animationContainer);
 
+// Add styles for better button behavior
+const additionalStyle = document.createElement('style');
+additionalStyle.textContent = `
+    .option-button.no-button {
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        z-index: 1;
+    }
+
+    .option-button.no-button:hover,
+    .option-button.no-button:active {
+        animation: none;
+    }
+
+    @media (max-width: 768px) {
+        .option-button.no-button {
+            touch-action: none;
+        }
+    }
+`;
+document.head.appendChild(additionalStyle);
+
 // Function to handle button hover effect
 function handleButtonHover(button) {
     if (button.classList.contains('no-button')) {
-        button.style.transform = `translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px)`;
+        // Calculate viewport dimensions
+        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        
+        // Generate larger random movements
+        const moveX = Math.random() * viewportWidth * 0.8 - viewportWidth * 0.4;
+        const moveY = Math.random() * viewportHeight * 0.6 - viewportHeight * 0.3;
+        
+        // Get button's current position
+        const rect = button.getBoundingClientRect();
+        
+        // Keep button within viewport bounds
+        const finalX = Math.min(Math.max(moveX, -rect.left), viewportWidth - rect.width);
+        const finalY = Math.min(Math.max(moveY, -rect.top), viewportHeight - rect.height);
+        
+        button.style.transform = `translate(${finalX}px, ${finalY}px)`;
+        button.style.pointerEvents = 'none';
+        
+        setTimeout(() => {
+            button.style.pointerEvents = 'auto';
+        }, 300);
     }
 }
 
@@ -387,11 +429,21 @@ function displayQuestion(index) {
             const slidingNoButton = document.createElement('button');
             slidingNoButton.textContent = 'No';
             slidingNoButton.className = 'option-button no-button';
-            slidingNoButton.onmouseover = () => handleButtonHover(slidingNoButton);
-            slidingNoButton.onclick = (e) => {
+            
+            // Add touch events for mobile
+            slidingNoButton.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 handleButtonHover(slidingNoButton);
-            };
+            }, { passive: false });
+            
+            // Add mouse events for desktop
+            slidingNoButton.addEventListener('mouseover', () => handleButtonHover(slidingNoButton));
+            slidingNoButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleButtonHover(slidingNoButton);
+            });
+            
             optionsContainer.appendChild(slidingNoButton);
             break;
 
