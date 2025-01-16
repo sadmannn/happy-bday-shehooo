@@ -227,3 +227,45 @@ body {
         padding: 0.8rem 1.6rem;
     }
 } 
+
+/* Yes button specific style */
+.option-button.yes-button {
+    background: #FF85A1;
+    box-shadow: 0 4px 15px rgba(255, 133, 161, 0.3);
+}
+
+.option-button.yes-button:hover {
+    background: #FF6B8B;
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(255, 133, 161, 0.4);
+}
+
+/* No button specific style */
+.option-button.no-button {
+    background: #B5DEFF;
+    box-shadow: 0 4px 15px rgba(181, 222, 255, 0.3);
+}
+
+.option-button.no-button:hover {
+    background: #96CEFF;
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(181, 222, 255, 0.4);
+}
+
+/* Submit button specific style */
+.option-button[type="submit"], 
+.option-button:not(.yes-button):not(.no-button) {
+    background: linear-gradient(135deg, #FF85A1, #FFB8D1);
+    box-shadow: 0 4px 15px rgba(255, 133, 161, 0.3);
+}
+
+.option-button[type="submit"]:hover,
+.option-button:not(.yes-button):not(.no-button):hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(255, 133, 161, 0.4);
+}
+
+/* Active state for all buttons */
+.option-button:active {
+    transform: scale(0.95);
+} 

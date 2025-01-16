@@ -180,7 +180,7 @@ function handleQuestionSubmit(answer, question) {
     switch (question.type) {
         case 'yesno':
             const isYes = answer.toLowerCase() === 'yes';
-            showResponse(question.responses[answer.toLowerCase()], true, isYes);
+            showResponse(question.responses[answer.toLowerCase()], isYes, isYes);
             if (isYes) {
                 // Randomly choose animations for variety
                 const animations = [
@@ -196,6 +196,7 @@ function handleQuestionSubmit(answer, question) {
             }
             break;
         case 'both-no':
+            // For this special case, show next button even though it's "No"
             showResponse(question.responses.no, true, true);
             createButterflyAnimation();
             createSparkleAnimation();
@@ -207,6 +208,8 @@ function handleQuestionSubmit(answer, question) {
                 createHeartAnimation();
                 createLoveAnimation();
                 createButterflyAnimation();
+            } else {
+                showResponse(question.responses.no || "Nice try! 😉", false, false);
             }
             break;
         case 'text':
@@ -407,13 +410,13 @@ function displayQuestion(index) {
         case 'yesno':
             const yesButton = document.createElement('button');
             yesButton.textContent = 'Yes';
-            yesButton.className = 'option-button';
+            yesButton.className = 'option-button yes-button';
             yesButton.onclick = () => handleQuestionSubmit('yes', question);
             optionsContainer.appendChild(yesButton);
 
             const noButton = document.createElement('button');
             noButton.textContent = 'No';
-            noButton.className = 'option-button';
+            noButton.className = 'option-button no-button';
             noButton.onclick = () => handleQuestionSubmit('no', question);
             optionsContainer.appendChild(noButton);
             break;
@@ -422,7 +425,7 @@ function displayQuestion(index) {
         case 'force-yes':
             const slidingYesButton = document.createElement('button');
             slidingYesButton.textContent = 'Yes';
-            slidingYesButton.className = 'option-button';
+            slidingYesButton.className = 'option-button yes-button';
             slidingYesButton.onclick = () => handleQuestionSubmit('yes', question);
             optionsContainer.appendChild(slidingYesButton);
 
@@ -451,7 +454,7 @@ function displayQuestion(index) {
             for (let i = 0; i < 2; i++) {
                 const noButton = document.createElement('button');
                 noButton.textContent = 'No';
-                noButton.className = 'option-button';
+                noButton.className = 'option-button no-button';
                 noButton.onclick = () => handleQuestionSubmit('no', question);
                 optionsContainer.appendChild(noButton);
             }
