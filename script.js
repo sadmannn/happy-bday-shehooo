@@ -245,7 +245,7 @@ function handleQuestionSubmit(answer, question) {
 
 // Update animation functions to use container
 function createHeartAnimation() {
-    const emojis = ['❤️', '💖', '💝', '💕', '💗', '💓'];
+    const emojis = ['❤️', '💖', '💝', '💕', '💗', '💓', '💘', '💞', '💟'];
     for (let i = 0; i < 15; i++) {
         const heart = document.createElement('div');
         heart.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
@@ -253,16 +253,17 @@ function createHeartAnimation() {
         heart.style.left = Math.random() * 100 + 'vw';
         heart.style.top = '100vh';
         heart.style.fontSize = (Math.random() * 20 + 20) + 'px';
-        heart.style.animation = `floatUp ${Math.random() * 2 + 3}s ease-out forwards`;
+        heart.style.animation = `floatUp ${Math.random() * 2 + 3}s cubic-bezier(0.4, 0, 0.2, 1) forwards`;
         heart.style.opacity = '0';
         heart.style.transform = `rotate(${Math.random() * 360}deg)`;
+        heart.style.filter = 'drop-shadow(0 0 10px rgba(255,255,255,0.5))';
         animationContainer.appendChild(heart);
         setTimeout(() => heart.remove(), 5000);
     }
 }
 
 function createSparkleAnimation() {
-    const emojis = ['✨', '⭐', '🌟', '💫', '✴️', '🎇'];
+    const emojis = ['✨', '⭐', '🌟', '💫', '✴️', '🎇', '⚡', '🌠'];
     for (let i = 0; i < 20; i++) {
         const sparkle = document.createElement('div');
         sparkle.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
@@ -270,14 +271,15 @@ function createSparkleAnimation() {
         sparkle.style.left = Math.random() * 100 + 'vw';
         sparkle.style.top = Math.random() * 100 + 'vh';
         sparkle.style.fontSize = (Math.random() * 15 + 15) + 'px';
-        sparkle.style.animation = `sparkle ${Math.random() * 1 + 1}s ease-out forwards`;
+        sparkle.style.animation = `sparkle ${Math.random() * 1 + 1}s cubic-bezier(0.4, 0, 0.2, 1) forwards`;
+        sparkle.style.filter = 'drop-shadow(0 0 8px rgba(255,223,0,0.6))';
         animationContainer.appendChild(sparkle);
         setTimeout(() => sparkle.remove(), 2000);
     }
 }
 
 function createButterflyAnimation() {
-    const butterflies = ['🦋', '🌸', '🌺', '🌹'];
+    const butterflies = ['🦋', '🌸', '🌺', '🌹', '🌷', '🌼', '🌻'];
     for (let i = 0; i < 12; i++) {
         const butterfly = document.createElement('div');
         butterfly.innerHTML = butterflies[Math.floor(Math.random() * butterflies.length)];
@@ -285,14 +287,26 @@ function createButterflyAnimation() {
         butterfly.style.left = '-50px';
         butterfly.style.top = Math.random() * 100 + 'vh';
         butterfly.style.fontSize = (Math.random() * 20 + 15) + 'px';
-        butterfly.style.animation = `flyAcross ${Math.random() * 3 + 4}s ease-in-out forwards`;
+        butterfly.style.animation = `flyAcross ${Math.random() * 3 + 4}s cubic-bezier(0.4, 0, 0.2, 1) forwards`;
+        butterfly.style.filter = 'drop-shadow(0 0 10px rgba(255,192,203,0.5))';
+        
+        // Add floating effect
+        butterfly.style.transform = 'translateY(0)';
+        butterfly.style.transition = 'transform 1s ease-in-out';
+        
+        // Create floating motion
+        setInterval(() => {
+            const floatY = (Math.random() - 0.5) * 30;
+            butterfly.style.transform = `translateY(${floatY}px)`;
+        }, 1000);
+        
         animationContainer.appendChild(butterfly);
         setTimeout(() => butterfly.remove(), 7000);
     }
 }
 
 function createLoveAnimation() {
-    const loveEmojis = ['😍', '🥰', '😘', '💝', '💖', '💗'];
+    const loveEmojis = ['😍', '🥰', '😘', '💝', '💖', '💗', '💓', '💕', '💌'];
     for (let i = 0; i < 10; i++) {
         const love = document.createElement('div');
         love.innerHTML = loveEmojis[Math.floor(Math.random() * loveEmojis.length)];
@@ -300,19 +314,33 @@ function createLoveAnimation() {
         love.style.left = Math.random() * 100 + 'vw';
         love.style.top = Math.random() * 100 + 'vh';
         love.style.fontSize = (Math.random() * 25 + 20) + 'px';
-        love.style.animation = `popAndSpin ${Math.random() * 1.5 + 1}s ease-out forwards`;
+        love.style.animation = `popAndSpin ${Math.random() * 1.5 + 1}s cubic-bezier(0.4, 0, 0.2, 1) forwards`;
+        love.style.filter = 'drop-shadow(0 0 10px rgba(255,105,180,0.6))';
         animationContainer.appendChild(love);
         setTimeout(() => love.remove(), 2500);
     }
 }
 
 function createConfetti() {
+    const colors = [
+        '#ff69b4', '#ff85a1', '#ffa5ba', '#ffb8d1',
+        '#ffd1ff', '#ff9a9e', '#fad0c4', '#ff6b6b'
+    ];
+    
     for (let i = 0; i < 50; i++) {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
         confetti.style.left = Math.random() * 100 + 'vw';
-        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
         confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        confetti.style.animationDelay = (Math.random() * 2) + 's';
+        confetti.style.opacity = Math.random() * 0.5 + 0.5;
+        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+        confetti.style.width = (Math.random() * 8 + 6) + 'px';
+        confetti.style.height = (Math.random() * 8 + 6) + 'px';
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        confetti.style.filter = 'drop-shadow(0 0 5px rgba(255,255,255,0.3))';
+        
         animationContainer.appendChild(confetti);
         setTimeout(() => confetti.remove(), 5000);
     }

@@ -6,13 +6,75 @@
 
 body {
     font-family: 'Poppins', sans-serif;
-    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     position: relative;
+}
+
+/* Dynamic background with blur */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(-45deg, 
+        #ffb6c1,  /* Light pink */
+        #ffd1dc,  /* Pastel pink */
+        #ffc0cb,  /* Pink */
+        #ffb6c1,  /* Light pink */
+        #ffd1dc,  /* Pastel pink */
+        #ffc0cb   /* Pink */
+    );
+    background-size: 400% 400%;
+    animation: gradientBG 30s ease infinite;
+    filter: blur(20px);
+    z-index: -2;
+}
+
+/* Overlay for additional effects */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, 
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    animation: pulseOverlay 8s ease-in-out infinite;
+    z-index: -1;
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes pulseOverlay {
+    0% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 0.3;
+    }
 }
 
 /* Animation container */
@@ -29,16 +91,33 @@ body {
 
 /* Main content containers */
 .welcome-container, .question-container {
-    background: rgba(255, 255, 255, 0.95);
-    padding: 2rem;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 2.5rem;
+    border-radius: 30px;
+    box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.1),
+        0 0 20px rgba(255, 255, 255, 0.2),
+        inset 0 0 20px rgba(255, 255, 255, 0.1);
     text-align: center;
     max-width: 90%;
     width: 500px;
     animation: fadeIn 1s ease-in;
     position: relative;
     z-index: 1001;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    transform: translateY(0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.welcome-container:hover, .question-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 
+        0 15px 50px rgba(0, 0, 0, 0.15),
+        0 0 30px rgba(255, 255, 255, 0.3),
+        inset 0 0 25px rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.8);
 }
 
 .welcome-content {
@@ -48,8 +127,9 @@ body {
 .welcome-title {
     color: #ff6b6b;
     font-size: 2.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     animation: bounceIn 1s ease-out;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .welcome-text {
@@ -57,23 +137,33 @@ body {
     font-size: 1.2rem;
     margin-bottom: 2rem;
     animation: slideUp 1s ease-out;
+    line-height: 1.6;
 }
 
 .start-button {
-    background: #ff6b6b;
+    background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
     color: white;
     border: none;
-    padding: 1rem 2rem;
+    padding: 1rem 2.5rem;
     font-size: 1.2rem;
     border-radius: 50px;
     cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.3s ease;
     animation: pulse 2s infinite;
+    box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
 }
 
 .start-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+    background: linear-gradient(45deg, #ff5252, #ff7676);
+}
+
+.start-button:active {
+    transform: translateY(1px) scale(0.98);
 }
 
 @keyframes fadeIn {
@@ -118,6 +208,8 @@ body {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
     animation: slideUp 0.5s ease-out;
+    line-height: 1.4;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .options-container {
@@ -150,14 +242,19 @@ body {
 .response-text {
     color: #4a4a4a;
     font-size: 1.1rem;
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     min-height: 2rem;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: all 0.5s ease;
+    line-height: 1.6;
+    padding: 0.5rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .response-text.show {
     opacity: 1;
+    transform: translateY(0);
 }
 
 .next-button {
@@ -180,18 +277,21 @@ body {
 
 .text-input {
     width: 100%;
-    padding: 0.8rem;
-    border: 2px solid #ff6b6b;
-    border-radius: 10px;
+    padding: 1rem;
+    border: 2px solid rgba(255, 107, 107, 0.3);
+    border-radius: 15px;
     font-size: 1rem;
     margin-bottom: 1rem;
     font-family: inherit;
+    background: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
 }
 
 .text-input:focus {
     outline: none;
     border-color: #ff4757;
-    box-shadow: 0 0 10px rgba(255, 107, 107, 0.2);
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.2);
+    transform: translateY(-2px);
 }
 
 /* Confetti animation */
@@ -213,43 +313,30 @@ body {
     }
 }
 
-@media (max-width: 600px) {
-    .welcome-title {
-        font-size: 2rem;
-    }
-    
-    .welcome-text {
-        font-size: 1rem;
-    }
-    
-    .start-button {
-        font-size: 1rem;
-        padding: 0.8rem 1.6rem;
-    }
-} 
-
 /* Yes button specific style */
 .option-button.yes-button {
-    background: #FF85A1;
+    background: linear-gradient(45deg, #FF85A1, #FFA5BA);
     box-shadow: 0 4px 15px rgba(255, 133, 161, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .option-button.yes-button:hover {
-    background: #FF6B8B;
-    transform: scale(1.05);
-    box-shadow: 0 5px 20px rgba(255, 133, 161, 0.4);
+    background: linear-gradient(45deg, #FF6B8B, #FF8FA8);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(255, 133, 161, 0.4);
 }
 
 /* No button specific style */
 .option-button.no-button {
-    background: #B5DEFF;
+    background: linear-gradient(45deg, #B5DEFF, #D6EAFF);
     box-shadow: 0 4px 15px rgba(181, 222, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .option-button.no-button:hover {
-    background: #96CEFF;
-    transform: scale(1.05);
-    box-shadow: 0 5px 20px rgba(181, 222, 255, 0.4);
+    background: linear-gradient(45deg, #96CEFF, #B8DFFF);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(181, 222, 255, 0.4);
 }
 
 /* Submit button specific style */
@@ -268,4 +355,85 @@ body {
 /* Active state for all buttons */
 .option-button:active {
     transform: scale(0.95);
+}
+
+/* Enhanced animations */
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) rotate(0deg) scale(0.5);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+        transform: translateY(-10vh) rotate(45deg) scale(1);
+    }
+    90% {
+        opacity: 1;
+        transform: translateY(-90vh) rotate(315deg) scale(1);
+    }
+    100% {
+        transform: translateY(-100vh) rotate(360deg) scale(0.5);
+        opacity: 0;
+    }
+}
+
+@keyframes sparkle {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.5) rotate(180deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+    .welcome-container, .question-container {
+        padding: 1.5rem;
+        max-width: 95%;
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+    }
+    
+    .welcome-text {
+        font-size: 1rem;
+    }
+    
+    .start-button {
+        font-size: 1rem;
+        padding: 0.8rem 1.6rem;
+    }
+
+    .question-text {
+        font-size: 1.3rem;
+    }
+
+    .option-button {
+        padding: 0.7rem 1.4rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .welcome-container, .question-container {
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .welcome-text, .response-text {
+        color: #333;
+    }
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
 } 
