@@ -648,23 +648,120 @@ function handleCakeInteraction(cakeContainer) {
     const flames = cakeContainer.querySelectorAll('.flame');
     const totalCandles = flames.length;
     let isBlowing = false;
+    let lastBlowTime = 0;
+    let blowCount = 0;
+    const remainingCandles = new Set([...Array(totalCandles).keys()]);
     
-    // Handle click on candles
+    // Encouraging messages for different scenarios
+    const blowMessages = [
+        "Almost there! Blow a little harder! 💨",
+        "You can do it! One big blow! 🌬️",
+        "Getting closer! Take a deep breath! 😤",
+        "Just a bit more power! 💪",
+        "Ooh, that was close! Try again! ✨"
+    ];
+    
+    let messageTimeout = null;
+    
+    // Function to show temporary message
+    function showTemporaryMessage(message) {
+        // Clear any existing message timeout
+        if (messageTimeout) {
+            clearTimeout(messageTimeout);
+        }
+        
+        // Remove existing message if any
+        const existingMsg = cakeContainer.querySelector('.blow-message');
+        if (existingMsg) {
+            existingMsg.remove();
+        }
+        
+        const msgElement = document.createElement('div');
+        msgElement.className = 'blow-message';
+        msgElement.textContent = message;
+        msgElement.style.opacity = '1'; // Ensure message is visible
+        msgElement.style.zIndex = '2000'; // Ensure message is on top
+        cakeContainer.appendChild(msgElement);
+        
+        // Remove message after 2 seconds
+        messageTimeout = setTimeout(() => {
+            msgElement.style.animation = 'fadeOut 0.5s forwards';
+            setTimeout(() => msgElement.remove(), 500);
+        }, 2000);
+    }
+    
+    // Function to blow out a random candle
+    function blowRandomCandle(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        if (remainingCandles.size === 0) return;
+        
+        // Convert Set to Array and get a random index
+        const candlesArray = Array.from(remainingCandles);
+        const randomIndex = Math.floor(Math.random() * candlesArray.length);
+        const candleToBlowOut = candlesArray[randomIndex];
+        
+        // Remove the candle from remaining set
+        remainingCandles.delete(candleToBlowOut);
+        
+        // Blow out the candle with animation
+        const flame = flames[candleToBlowOut];
+        flame.style.animation = 'flameOut 0.3s forwards';
+        setTimeout(() => {
+            flame.style.opacity = '0';
+            candlesBlown++;
+            
+            // Create sparkle effect around the blown candle
+            createSparkleAtPosition(flame.getBoundingClientRect());
+            
+            // Check if this was the last candle
+            if (candlesBlown === totalCandles) {
+                handleAllCandlesBlown();
+            }
+        }, 300);
+    }
+    
+    // Function to create sparkle effect at specific position
+    function createSparkleAtPosition(rect) {
+        const sparkleEmojis = ['✨', '⭐', '🌟', '💫'];
+        for (let i = 0; i < 3; i++) {
+            const sparkle = document.createElement('div');
+            sparkle.style.position = 'absolute';
+            sparkle.style.left = `${rect.left + (Math.random() * 20 - 10)}px`;
+            sparkle.style.top = `${rect.top + (Math.random() * 20 - 10)}px`;
+            sparkle.style.fontSize = '20px';
+            sparkle.style.zIndex = '1000';
+            sparkle.textContent = sparkleEmojis[Math.floor(Math.random() * sparkleEmojis.length)];
+            sparkle.style.animation = 'sparkleAndFade 1s forwards';
+            document.body.appendChild(sparkle);
+            setTimeout(() => sparkle.remove(), 1000);
+        }
+    }
+    
+    // Only handle clicks on individual flames and cake
     flames.forEach(flame => {
         flame.style.opacity = '1';
         flame.style.pointerEvents = 'auto';
         
         flame.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (this.style.opacity !== '0') {
-                this.style.opacity = '0';
-                candlesBlown++;
-                checkAllCandlesBlown();
+            if (remainingCandles.size > 0) {
+                blowRandomCandle(e);
             }
         });
     });
-    
+
+    // Add click handler for the entire cake
+    const cake = cakeContainer.querySelector('.cake');
+    cake.style.cursor = 'pointer';
+    cake.addEventListener('click', function(e) {
+        if (remainingCandles.size > 0) {
+            blowRandomCandle(e);
+        }
+    });
+
     // Use existing microphone stream if available
     if (window.microphoneStream) {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -672,54 +769,192 @@ function handleCakeInteraction(cakeContainer) {
         const microphone = audioContext.createMediaStreamSource(window.microphoneStream);
         microphone.connect(analyser);
         
-        analyser.fftSize = 256;
+        analyser.fftSize = 512;
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        let consecutiveBlows = 0;
+        let lastHighLevel = 0;
+        
+        // Variables for noise floor calibration
+        let noiseFloor = 0;
+        let calibrationSamples = 0;
+        const CALIBRATION_PERIOD = 30;
+        let isCalibrating = true;
         
         function checkAudioLevel() {
             analyser.getByteFrequencyData(dataArray);
             
             let sum = 0;
-            for (let i = 0; i < 10; i++) {
+            let count = 0;
+            for (let i = 1; i < 20; i++) {
                 sum += dataArray[i];
+                count++;
             }
-            const average = sum / 10;
+            const average = sum / count;
+            const now = Date.now();
             
-            if (average > 70 && !isBlowing) {
-                isBlowing = true;
-                flames.forEach(flame => {
-                    if (flame.style.opacity !== '0') {
-                        flame.style.opacity = '0';
-                        candlesBlown++;
-                    }
-                });
-                checkAllCandlesBlown();
+            if (isCalibrating) {
+                noiseFloor = (noiseFloor * calibrationSamples + average) / (calibrationSamples + 1);
+                calibrationSamples++;
                 
-                setTimeout(() => {
-                    isBlowing = false;
-                }, 1000);
+                if (calibrationSamples >= CALIBRATION_PERIOD) {
+                    isCalibrating = false;
+                    noiseFloor += 10;
+                }
+                requestAnimationFrame(checkAudioLevel);
+                return;
             }
             
-            if (candlesBlown < totalCandles) {
+            // Increased thresholds by another 15%
+            const blowThreshold = Math.max(noiseFloor + 46, 113);
+            
+            if (average > blowThreshold) {
+                if (now - lastHighLevel < 200) {
+                    consecutiveBlows++;
+                } else {
+                    consecutiveBlows = 1;
+                }
+                lastHighLevel = now;
+                
+                // Increased delay between blows by 50% (from 1000ms to 1500ms)
+                if (consecutiveBlows >= 3 && !isBlowing && now - lastBlowTime > 1500) {
+                    const intensity = average - noiseFloor;
+                    if (intensity > 60) {
+                        isBlowing = true;
+                        lastBlowTime = now;
+                        blowCount++;
+                        
+                        if (remainingCandles.size > 0) {
+                            blowRandomCandle();
+                            // Show success message
+                            showTemporaryMessage("Nice blow! Keep going! 🌬️✨");
+                        }
+                        
+                        // Increased cooldown by 50% (from 1000ms to 1500ms)
+                        setTimeout(() => {
+                            isBlowing = false;
+                            consecutiveBlows = 0;
+                        }, 1500);
+                    } else {
+                        // Show encouraging message for weak blow
+                        showTemporaryMessage(blowMessages[Math.floor(Math.random() * blowMessages.length)]);
+                    }
+                }
+            } else {
+                if (now - lastHighLevel > 300) {
+                    consecutiveBlows = Math.max(0, consecutiveBlows - 1);
+                }
+            }
+            
+            if (!isBlowing && average < noiseFloor + 15) {
+                noiseFloor = noiseFloor * 0.95 + average * 0.05;
+            }
+            
+            if (remainingCandles.size > 0) {
                 requestAnimationFrame(checkAudioLevel);
             }
         }
         
+        console.log("Calibrating microphone...");
         checkAudioLevel();
     }
     
-    function checkAllCandlesBlown() {
-        if (candlesBlown === totalCandles) {
+    // Function to handle when all candles are blown
+    function handleAllCandlesBlown() {
+        // Create a grand finale effect
+        createHeartAnimation();
+        createSparkleAnimation();
+        createConfetti();
+        
+        // Show a celebration message
+        const celebrationMsg = document.createElement('div');
+        celebrationMsg.textContent = "Yay! All candles blown! Make a wish! 🎂✨";
+        celebrationMsg.className = 'celebration-message';
+        celebrationMsg.style.zIndex = '2000'; // Ensure message is on top
+        cakeContainer.appendChild(celebrationMsg);
+        
+        // Keep the cake and message visible for longer (7 seconds total)
+        setTimeout(() => {
+            celebrationMsg.style.animation = 'fadeOut 2s forwards';
+            cakeContainer.style.animation = 'fadeOut 2s forwards';
             setTimeout(() => {
-                cakeContainer.style.animation = 'fadeOut 1s forwards';
-                setTimeout(() => {
-                    cakeContainer.remove();
-                    showFinalCongrats();
-                }, 1000);
-            }, 1500);
-        }
+                cakeContainer.remove();
+                showFinalCongrats();
+            }, 2000);
+        }, 7000); // Increased from 4000 to 7000 for 3 more seconds
     }
 }
+
+// Update the styles to ensure messages are visible and cake is clickable
+const newAnimations = `
+    @keyframes flameOut {
+        0% { transform: translateX(-50%) scale(1); opacity: 1; }
+        100% { transform: translateX(-50%) scale(0); opacity: 0; }
+    }
+    
+    @keyframes sparkleAndFade {
+        0% { transform: scale(0) rotate(0deg); opacity: 0; }
+        50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+        100% { transform: scale(0) rotate(360deg); opacity: 0; }
+    }
+    
+    .celebration-message {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 1.2rem;
+        color: #ff6b6b;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+        z-index: 2000;
+    }
+    
+    .cake {
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    
+    .cake:hover {
+        transform: scale(1.02);
+    }
+    
+    .cake:active {
+        transform: scale(0.98);
+    }
+    
+    .blow-message {
+        position: absolute;
+        bottom: -70px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 12px 20px;
+        border-radius: 15px;
+        font-size: 1.1rem;
+        color: #ff6b6b;
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
+        white-space: nowrap;
+        z-index: 2000;
+        pointer-events: none;
+    }
+    
+    @keyframes popIn {
+        0% { transform: translateX(-50%) scale(0); opacity: 0; }
+        100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+`;
+
+style.textContent = style.textContent + newAnimations;
 
 // Update showFinalMessage function
 function showFinalMessage() {
