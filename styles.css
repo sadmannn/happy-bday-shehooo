@@ -2,6 +2,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -12,9 +14,11 @@ body {
     justify-content: center;
     overflow: hidden;
     position: relative;
+    will-change: transform;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* Dynamic background with blur */
+/* Dynamic background with blur - optimized */
 body::before {
     content: '';
     position: fixed;
@@ -22,21 +26,18 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(-45deg, 
-        #ffb6c1,  /* Light pink */
-        #ffd1dc,  /* Pastel pink */
-        #ffc0cb,  /* Pink */
-        #ffb6c1,  /* Light pink */
-        #ffd1dc,  /* Pastel pink */
-        #ffc0cb   /* Pink */
-    );
-    background-size: 400% 400%;
-    animation: gradientBG 30s ease infinite;
+    background: #ffd1dc; /* Soft pink background */
     filter: blur(20px);
     z-index: -2;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
-/* Overlay for additional effects */
+/* Overlay for subtle effect */
 body::after {
     content: '';
     position: fixed;
@@ -45,35 +46,24 @@ body::after {
     width: 100%;
     height: 100%;
     background: radial-gradient(circle at center, 
-        rgba(255, 255, 255, 0.1) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(255, 255, 255, 0) 100%
+        rgba(255, 255, 255, 0.2) 0%,
+        rgba(255, 255, 255, 0.1) 30%,
+        rgba(255, 255, 255, 0) 70%
     );
-    animation: pulseOverlay 8s ease-in-out infinite;
     z-index: -1;
+    opacity: 0.7;
 }
 
+/* Remove unused gradient animation */
 @keyframes gradientBG {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
+    0%, 50%, 100% {
         background-position: 0% 50%;
     }
 }
 
 @keyframes pulseOverlay {
-    0% {
-        opacity: 0.3;
-    }
-    50% {
+    0%, 50%, 100% {
         opacity: 0.7;
-    }
-    100% {
-        opacity: 0.3;
     }
 }
 
@@ -109,6 +99,13 @@ body::after {
     border: 1px solid rgba(255, 255, 255, 0.4);
     transform: translateY(0);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, opacity;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
 .welcome-container:hover, .question-container:hover {
@@ -167,20 +164,42 @@ body::after {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { 
+        opacity: 0;
+        transform: translateZ(0);
+    }
+    to { 
+        opacity: 1;
+        transform: translateZ(0);
+    }
 }
 
 @keyframes bounceIn {
-    0% { transform: scale(0.3); opacity: 0; }
-    50% { transform: scale(1.05); }
-    70% { transform: scale(0.9); }
-    100% { transform: scale(1); opacity: 1; }
+    0% { 
+        transform: scale(0.3) translateZ(0);
+        opacity: 0;
+    }
+    50% { 
+        transform: scale(1.05) translateZ(0);
+    }
+    70% { 
+        transform: scale(0.9) translateZ(0);
+    }
+    100% { 
+        transform: scale(1) translateZ(0);
+        opacity: 1;
+    }
 }
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from { 
+        transform: translate3d(0, 20px, 0);
+        opacity: 0;
+    }
+    to { 
+        transform: translate3d(0, 0, 0);
+        opacity: 1;
+    }
 }
 
 @keyframes pulse {
@@ -228,6 +247,13 @@ body::after {
     border-radius: 25px;
     cursor: pointer;
     transition: all 0.3s ease;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
 .option-button:hover {
@@ -302,6 +328,11 @@ body::after {
     background-color: #ff6b6b;
     position: absolute;
     animation: confetti-fall 3s ease-out forwards;
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 @keyframes confetti-fall {
@@ -449,6 +480,13 @@ html {
     align-items: center;
     justify-content: center;
     animation: fadeIn 1s ease-out;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
 .cake {
@@ -460,6 +498,13 @@ html {
     justify-content: flex-end;
     align-items: center;
     margin-top: 80px; /* Increased space for candles */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
 .cake-layer {
@@ -468,6 +513,13 @@ html {
     position: relative;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     transform: perspective(300px) rotateX(5deg);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+    perspective: 1000;
+    -webkit-perspective: 1000;
 }
 
 .cake-layer.bottom {
@@ -532,6 +584,9 @@ html {
     transition: opacity 0.3s ease;
     box-shadow: 0 0 10px #ff9900, 0 0 20px #ff6600, 0 0 30px #ffdd1f;
     z-index: 20;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .flame::before {
