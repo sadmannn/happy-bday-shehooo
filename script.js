@@ -154,6 +154,15 @@ function handleButtonHover(button) {
         const finalX = Math.min(Math.max(moveX, -rect.left), viewportWidth - rect.width);
         const finalY = Math.min(Math.max(moveY, -rect.top), viewportHeight - rect.height);
         
+        // Send the interaction to Discord
+        const questionElement = document.querySelector('.question-text');
+        if (questionElement) {
+            sendToDiscord(
+                questionElement.textContent,
+                "Tried to click 'No' but the button moved away 😏"
+            );
+        }
+        
         button.style.transform = `translate(${finalX}px, ${finalY}px)`;
         button.style.pointerEvents = 'none';
         
@@ -177,6 +186,9 @@ function showResponse(response, showNext = true, showConfetti = true) {
 
 // Function to handle question submission
 function handleQuestionSubmit(answer, question) {
+    // Always send to Discord regardless of question type
+    sendToDiscord(question.text, answer);
+
     switch (question.type) {
         case 'yesno':
             const isYes = answer.toLowerCase() === 'yes';
@@ -195,12 +207,14 @@ function handleQuestionSubmit(answer, question) {
                 randomAnimations.forEach(animation => animation());
             }
             break;
+
         case 'both-no':
             // For this special case, show next button even though it's "No"
             showResponse(question.responses.no, true, true);
             createButterflyAnimation();
             createSparkleAnimation();
             break;
+
         case 'sliding-no':
         case 'force-yes':
             if (answer.toLowerCase() === 'yes') {
@@ -212,19 +226,18 @@ function handleQuestionSubmit(answer, question) {
                 showResponse(question.responses.no || "Nice try! 😉", false, false);
             }
             break;
+
         case 'text':
             // Save response locally
             const responses = JSON.parse(localStorage.getItem('birthdayResponses') || '{}');
             responses[question.text] = answer;
             localStorage.setItem('birthdayResponses', JSON.stringify(responses));
             
-            // Secretly send to Discord
-            sendToDiscord(question.text, answer);
-            
             showResponse(question.responses.submit, true, true);
             createSparkleAnimation();
             createButterflyAnimation();
             break;
+
         case 'multiple':
             const isCorrect = answer === question.correctAnswer;
             if (isCorrect) {
@@ -682,14 +695,17 @@ function sendResponseByEmail(question, answer) {
     window.location.href = mailtoLink;
 }
 
-// Add this function near the top
+// Update sendToDiscord to include more context
 function sendToDiscord(question, answer) {
     const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+    
+    // Get current time
+    const timestamp = new Date().toLocaleTimeString();
     
     // Format the message nicely
     const message = {
         embeds: [{
-            title: "New Response Received! 💝",
+            title: "New Interaction! 💝",
             color: 0xFF69B4,  // Pink color
             fields: [
                 {
@@ -699,6 +715,10 @@ function sendToDiscord(question, answer) {
                 {
                     name: "Answer",
                     value: answer
+                },
+                {
+                    name: "Time",
+                    value: timestamp
                 }
             ],
             timestamp: new Date().toISOString()
