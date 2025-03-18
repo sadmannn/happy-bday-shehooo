@@ -302,10 +302,10 @@ The website includes 13 romantic questions covering topics like:
 - Dark mode support
 
 ## User Experience Flow
-1. Welcome screen with instructions
-2. Series of interactive questions
-3. Various animations based on responses
-4. Final birthday cake interaction
-5. Grand finale celebration
+- Welcome screen with instructions (Requires mandatory microphone permission to proceed. If permission is initially denied, a prompt card will appear to encourage granting access.)
+- Series of interactive questions
+- Various animations based on responses
+- Final birthday cake interaction
+- Grand finale celebration
 
 This website combines modern web technologies with thoughtful, romantic interactions to create a unique and memorable birthday experience. Each element is designed to make your girlfriend smile, blush, and feel special on her birthday.
