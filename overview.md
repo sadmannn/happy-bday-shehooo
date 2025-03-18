@@ -177,6 +177,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Handles errors with retry functionality
 - Confirms successful saving of all responses
 - Provides a final safe close option
+- Enhanced "Close Now" button ensures any final recordings are sent to the webhook before closing
 
 #### Safety Features
 - Warning in welcome screen about proper closing procedure
