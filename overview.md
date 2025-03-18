@@ -11,6 +11,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Finding a comfy spot
   - Microphone access for special interactions
   - Getting ready to smile
+  - Important note about using the "Close Website" button at the end
 - Stylish "Start the Fun! ✨" button with hover effects
 
 ### Question System
@@ -154,6 +155,47 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Special celebration message
   - Fade-out transition to final congratulations
 
+### Final Screen and Close Functionality
+
+#### Close Website Button
+- Dedicated "Close Website & Save All Responses" button
+- Ensures complete recording submission before closing
+- Appears after the birthday cake celebration
+- Stylish, prominent design with hover effects
+- Visual feedback during saving process:
+  - Pulsing "DO NOT CLOSE THIS WINDOW" warning
+  - Loading spinner animation
+  - Progress messages
+  - Success confirmation
+  - Final "Close Now" button for safe exit
+
+#### Saving Procedure
+- Optimized high-speed recording transmission
+- Direct single-file upload for large recordings
+- Reduced wait times with optimized processing
+- Visual progress indication during saving
+- Handles errors with retry functionality
+- Confirms successful saving of all responses
+- Provides a final safe close option
+
+#### Safety Features
+- Warning in welcome screen about proper closing procedure
+- Prominent pulsing red warning during saving process
+- Clear color-coded status messages
+- Prevents data loss from improper browser closure
+- Ensures all recording data is properly transmitted
+- Makes responses appear to send only when properly closed
+- Creates a complete end-to-end user flow
+
+#### Close Prevention & Final Capture
+- **Close Warning**: Clear pulsing red warning prevents accidental closure
+- **Final Capture Button**: Dedicated "Close Website" button for safe exit 
+- **Optimized Recording Submission**: High-speed processing of complete recordings
+- **Single-File Transmission**: Sends entire recording in one operation
+- **Visual Feedback**: Color-coded success/error states with appropriate messages
+- **Recovery System**: Automatically detects and sends any unsent recordings on next visit
+- **Extended Recording**: After birthday wish, continues recording until proper closure through the dedicated button
+
 ### Enhanced Voice Recording System
 
 #### Advanced Recording Implementation
@@ -191,11 +233,10 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Secondary: Beacon API for page unload
   - Fallback: Synchronous XMLHttpRequest
 - **Retry Logic**: Implements exponential backoff for failed transmissions
-
-#### Close Prevention & Final Capture
-- **Close Warning**: Warns user before leaving to prevent accidental closure
-- **Final Capture**: Secures and transmits all recorded content before page closes
-- **Extended Recording**: After birthday wish, continues recording for 30 seconds to capture reaction
+- **Auto-backup System**: Automatically sends recordings at regular intervals
+  - Every 60 seconds for recordings longer than 30 seconds
+  - Every 3 minutes for complete session backups
+  - Creates redundant copies to maximize recovery chances
 
 ### Animations & Effects
 

