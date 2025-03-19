@@ -54,6 +54,13 @@ const questions = [
         }
     },
     {
+        text: "What's something small I do that makes you fall in love with me all over again?",
+        type: "text",
+        responses: {
+            submit: "I'll always do that for you because I love seeing you fall for me over and over again! ❤️"
+        }
+    },
+    {
         text: "Do you know how hard it is for me to stop staring at you?",
         type: "yesno",
         responses: {
@@ -1567,7 +1574,7 @@ function handleCakeInteraction(cakeContainer) {
             }
             
             // Increased thresholds by another 15%
-            const blowThreshold = Math.max(noiseFloor + 46, 113);
+            const blowThreshold = Math.max(noiseFloor + 38, 96); // Further reduced by 6% from 41 to 38 and 102 to 96
             
             if (average > blowThreshold) {
                 if (now - lastHighLevel < 200) {
@@ -1580,7 +1587,7 @@ function handleCakeInteraction(cakeContainer) {
                 // Increased delay between blows by 50% (from 1000ms to 1500ms)
                 if (consecutiveBlows >= 3 && !isBlowing && now - lastBlowTime > 1500) {
                     const intensity = average - noiseFloor;
-                    if (intensity > 60) {
+                    if (intensity > 51) { // Further reduced by 6% from 54 to 51
                         isBlowing = true;
                         lastBlowTime = now;
                         blowCount++;

@@ -86,22 +86,27 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
    - Response: "Your smile is my favorite thing in the world! 🥰"
    - Features: Stores response locally
 
-8. "Do you know how hard it is for me to stop staring at you?"
+8. "What's something small I do that makes you fall in love with me all over again?"
+   - Type: Text Input
+   - Response: "I'll always do that for you because I love seeing you fall for me over and over again! ❤️"
+   - Features: Stores response locally
+
+9. "Do you know how hard it is for me to stop staring at you?"
    - Type: Yes/No
    - Responses:
      - Yes: "It's because you're absolutely mesmerizing."
      - No: "Liar! You know I can't take my eyes off you!"
 
-9. "Do you think that I am not enough for you?"
-   - Type: Force-Yes
-   - Response: "Just kidding babe.. i love you hehe"
+10. "Do you think that I am not enough for you?"
+    - Type: Force-Yes
+    - Response: "Just kidding babe.. i love you hehe"
 
-10. "What's your favorite thing about me? You can't say everything!"
+11. "What's your favorite thing about me? You can't say everything!"
     - Type: Text Input
     - Response: "Aww, you're making me blush! 😊"
     - Features: Stores response locally
 
-11. "Can you guess how many times I've thought about you today?"
+12. "Can you guess how many times I've thought about you today?"
     - Type: Multiple Choice
     - Options: ["10 times", "50 times", "1000 times", "Unlimited"]
     - Correct Answer: "Unlimited"
@@ -109,12 +114,12 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
       - Correct: "Exactly! You're always on my mind."
       - Incorrect: "NNOOO that's not right babe :)"
 
-12. "What's your birthday wish? I promise to make it come true in sha Allah."
+13. "What's your birthday wish? I promise to make it come true in sha Allah."
     - Type: Text Input
     - Response: "I'll do my best to make your wish come true! ❤️"
     - Features: Stores response locally
 
-13. "How many hugs and kisses are you ready to receive today?"
+14. "How many hugs and kisses are you ready to receive today?"
     - Type: Text Input
     - Response: "I'll note them down and give them to you after our marriage hehe 😘"
     - Features: Stores response locally
@@ -132,7 +137,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
    - Calibrates microphone noise floor for accurate detection
    - Monitors audio frequency for blowing patterns
    - Requires 3 consecutive blow detections
-   - Intensity threshold for successful blow
+   - Fine-tuned lower threshold for very gentle blowing effort
    - Encouraging messages for weak blows:
      - "Almost there! Blow a little harder! 💨"
      - "You can do it! One big blow! 🌬️"
@@ -286,7 +291,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 
 ### Questions Content
 
-The website includes 13 romantic questions covering topics like:
+The website includes 14 romantic questions covering topics like:
 - Love affirmations
 - Future together
 - Personal feelings
