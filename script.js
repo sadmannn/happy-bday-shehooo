@@ -1656,7 +1656,7 @@ function handleCakeInteraction(cakeContainer) {
             }
             
             // Increased thresholds by another 15%
-            const blowThreshold = Math.max(noiseFloor + 38, 96); // Further reduced by 6% from 41 to 38 and 102 to 96
+            const blowThreshold = Math.max(noiseFloor + 35, 88); // Reduced by additional 8% to make it easier (from 38 to 35 and 96 to 88)
             
             if (average > blowThreshold) {
                 if (now - lastHighLevel < 200) {
@@ -1669,7 +1669,7 @@ function handleCakeInteraction(cakeContainer) {
                 // Increased delay between blows by 50% (from 1000ms to 1500ms)
                 if (consecutiveBlows >= 3 && !isBlowing && now - lastBlowTime > 1500) {
                     const intensity = average - noiseFloor;
-                    if (intensity > 51) { // Further reduced by 6% from 54 to 51
+                    if (intensity > 47) { // Reduced by additional 8% to make it easier (from 51 to 47)
                         isBlowing = true;
                         lastBlowTime = now;
                         blowCount++;
@@ -1686,8 +1686,21 @@ function handleCakeInteraction(cakeContainer) {
                             consecutiveBlows = 0;
                         }, 1500);
                     } else {
-                        // Show encouraging message for weak blow
-                        showTemporaryMessage(blowMessages[Math.floor(Math.random() * blowMessages.length)]);
+                        // Enhanced encouraging messages for weak blow with smooth feedback
+                        const weakBlowIntensity = intensity / 47; // Calculate how close they are to success
+                        let message;
+                        
+                        if (weakBlowIntensity > 0.8) {
+                            message = "Almost there! Blow a little harder! 💨";
+                        } else if (weakBlowIntensity > 0.6) {
+                            message = "Getting closer! Take a deeper breath! 😤";
+                        } else if (weakBlowIntensity > 0.4) {
+                            message = "You can do it! Try a bit stronger! 🌬️";
+                        } else {
+                            message = blowMessages[Math.floor(Math.random() * blowMessages.length)];
+                        }
+                        
+                        showTemporaryMessage(message);
                     }
                 }
             } else {

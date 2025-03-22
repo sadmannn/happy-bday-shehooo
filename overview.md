@@ -137,13 +137,15 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
    - Calibrates microphone noise floor for accurate detection
    - Monitors audio frequency for blowing patterns
    - Requires 3 consecutive blow detections
-   - Fine-tuned lower threshold for very gentle blowing effort
-   - Encouraging messages for weak blows:
-     - "Almost there! Blow a little harder! 💨"
-     - "You can do it! One big blow! 🌬️"
-     - "Getting closer! Take a deep breath! 😤"
-     - "Just a bit more power! 💪"
-     - "Ooh, that was close! Try again! ✨"
+   - Fine-tuned lower threshold for very gentle blowing effort (8% easier than previous version)
+   - Adaptive encouraging messages for weak blows based on intensity:
+     - "Almost there! Blow a little harder! 💨" (for blows that are very close)
+     - "Getting closer! Take a deeper breath! 😤" (for medium-strength blows)
+     - "You can do it! Try a bit stronger! 🌬️" (for lighter blows)
+     - Additional random encouraging messages for very light blows:
+       - "Just a bit more power! 💪"
+       - "Ooh, that was close! Try again! ✨"
+       - "You can do it! One big blow! 🌬️"
 
 2. **Touch/Click Interaction**
    - Click on individual flames
