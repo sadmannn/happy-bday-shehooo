@@ -271,8 +271,8 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Provides clear explanation of why permissions are needed
   - Easy one-click button to grant all required permissions
   - Intelligent detection of already-granted permissions
+  - Visual instructions image showing how to reset browser permissions
   - Specific handling for disabled device location on mobile devices
-  - Visual instructions with images for resetting browser permissions
   - Prevents redundant permission requests once granted
 
 #### Secure Data Transmission

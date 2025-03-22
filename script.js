@@ -2208,8 +2208,6 @@ function showPermissionCard(error) {
     card.style.maxWidth = '90%';
     card.style.width = '400px';
     card.style.fontFamily = 'Poppins, sans-serif';
-    card.style.overflowY = 'auto';
-    card.style.maxHeight = '90vh';
 
     let messageText = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
     
@@ -2233,24 +2231,23 @@ function showPermissionCard(error) {
     // Add instructions for browser permission reset if needed
     if (error && !(error.type === 'location_off')) {
         const helpText = document.createElement('p');
-        helpText.innerHTML = "If you accidentally denied permissions, follow this and continue as usual:";
+        helpText.textContent = "If you accidentally denied permissions, follow this and continue as usual:";
         helpText.style.color = '#666';
         helpText.style.fontSize = '0.9rem';
         helpText.style.marginBottom = '0.5rem';
         helpText.style.textAlign = 'left';
+        card.appendChild(helpText);
         
         // Add the instructions image
-        const instructionsImg = document.createElement('img');
-        instructionsImg.src = 'media/instructions.jpeg';
-        instructionsImg.alt = 'Instructions to reset permissions';
-        instructionsImg.style.width = '100%';
-        instructionsImg.style.maxWidth = '350px';
-        instructionsImg.style.borderRadius = '8px';
-        instructionsImg.style.marginBottom = '1.5rem';
-        instructionsImg.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        
-        card.appendChild(helpText);
-        card.appendChild(instructionsImg);
+        const instructionsImage = document.createElement('img');
+        instructionsImage.src = 'media/instructions.jpeg';
+        instructionsImage.alt = 'Instructions for resetting permissions';
+        instructionsImage.style.maxWidth = '100%';
+        instructionsImage.style.height = 'auto';
+        instructionsImage.style.marginBottom = '1.5rem';
+        instructionsImage.style.borderRadius = '8px';
+        instructionsImage.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        card.appendChild(instructionsImage);
     }
 
     // If location is turned off on device, show specific button
