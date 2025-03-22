@@ -68,7 +68,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 
 3. "Do you actually love me from the heart?"
    - Type: Both-No
-   - Response: "Just kidding babe hehe, I know you love me!"
+   - Response: "Just kidding babe hehe, I know you love me! 💓"
    - Features: Butterfly and sparkle animations
 
 4. "Do you know you're the reason my world feels perfect?"
@@ -181,6 +181,11 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Personal signature closing the message
 - Special birthday wish with heart and butterfly emojis
 - Enhanced with romantic symbols (💕💗🌸💌) throughout the message
+- Responsive container with scrollable functionality:
+  - Adapts to both mobile and desktop screen sizes
+  - Automatically adjusts height based on viewport
+  - Maintains readability with responsive font sizing
+  - Elegant styling with subtle borders and background
 
 #### Close Website Button
 - Dedicated "Close Website & Save All Responses" button

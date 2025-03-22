@@ -17,7 +17,7 @@ const questions = [
         }
     },
     {
-        text: "Do you actually love me from the heart? 💖",
+        text: "Do you actually love me from the heart?",
         type: "both-no",
         responses: {
             no: "Just kidding babe hehe, I know you love me! 💓"
@@ -1854,6 +1854,24 @@ function showFinalCongrats() {
     responseText.textContent = "Shehomim, from the moment you stepped into my life, everything became brighter, warmer, and more beautiful—just like you. You are the most precious person in my world. Every heartbeat of mine whispers your name, and every moment with you feels like a dream I never want to end. 💕\nI promise you, my love, that no matter where life takes us, I will always hold your hand, cherish you, and love you with everything I have. In Sha Allah, one day, I will make you mine forever. Until then, I will keep falling for you, over and over again. 💗🌸\nHappy Birthday, Sheho🖤\nYours, forever and always, 💌\nSadman";
     responseText.classList.add('show');
     responseText.style.whiteSpace = 'pre-line'; // Preserve line breaks
+    
+    // Make final message more responsive
+    responseText.style.maxHeight = '40vh'; // Limit height based on viewport
+    responseText.style.overflowY = 'auto'; // Add scrolling if content is too large
+    responseText.style.padding = '15px'; // Add padding for better readability
+    responseText.style.fontSize = 'calc(0.9rem + 0.5vw)'; // Responsive font size
+    responseText.style.lineHeight = '1.5'; // Increase line height for readability
+    responseText.style.border = '1px solid rgba(255, 107, 107, 0.3)'; // Add subtle border
+    responseText.style.borderRadius = '15px'; // Rounded corners
+    responseText.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'; // Slightly opaque background
+    
+    // Add responsive styles for mobile devices
+    if (window.innerWidth <= 600) {
+        responseText.style.maxHeight = '50vh'; // Taller on mobile
+        responseText.style.fontSize = 'calc(0.85rem + 0.4vw)'; // Slightly smaller text
+        responseText.style.padding = '10px'; // Less padding
+    }
+    
     createConfetti();
     
     // Create a close website button

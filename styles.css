@@ -283,6 +283,25 @@ body::after {
     transform: translateY(0);
 }
 
+/* Enhanced styles for final letter */
+.response-text.show::-webkit-scrollbar {
+    width: 6px;
+}
+
+.response-text.show::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.response-text.show::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.5);
+    border-radius: 10px;
+}
+
+.response-text.show::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.7);
+}
+
 .next-button {
     background: #4a4a4a;
     color: white;
