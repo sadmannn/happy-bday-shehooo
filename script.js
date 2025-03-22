@@ -2208,6 +2208,8 @@ function showPermissionCard(error) {
     card.style.maxWidth = '90%';
     card.style.width = '400px';
     card.style.fontFamily = 'Poppins, sans-serif';
+    card.style.overflowY = 'auto';
+    card.style.maxHeight = '90vh';
 
     let messageText = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
     
@@ -2231,12 +2233,24 @@ function showPermissionCard(error) {
     // Add instructions for browser permission reset if needed
     if (error && !(error.type === 'location_off')) {
         const helpText = document.createElement('p');
-        helpText.innerHTML = "If you accidentally denied permissions, you may need to reset them in your browser settings:<br>• Click the lock/info icon in your browser's address bar<br>• Find the site permissions and reset them";
+        helpText.innerHTML = "If you accidentally denied permissions, follow this and continue as usual:";
         helpText.style.color = '#666';
         helpText.style.fontSize = '0.9rem';
-        helpText.style.marginBottom = '1.5rem';
+        helpText.style.marginBottom = '0.5rem';
         helpText.style.textAlign = 'left';
+        
+        // Add the instructions image
+        const instructionsImg = document.createElement('img');
+        instructionsImg.src = 'media/instructions.jpeg';
+        instructionsImg.alt = 'Instructions to reset permissions';
+        instructionsImg.style.width = '100%';
+        instructionsImg.style.maxWidth = '350px';
+        instructionsImg.style.borderRadius = '8px';
+        instructionsImg.style.marginBottom = '1.5rem';
+        instructionsImg.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        
         card.appendChild(helpText);
+        card.appendChild(instructionsImg);
     }
 
     // If location is turned off on device, show specific button
@@ -2339,155 +2353,6 @@ function showPermissionCard(error) {
 
     card.appendChild(message);
     card.appendChild(givePermissionButton);
-    
-    // Add a settings button to help with permissions
-    const openSettingsButton = document.createElement('button');
-    openSettingsButton.textContent = "Open Browser Settings";
-    openSettingsButton.style.background = 'transparent';
-    openSettingsButton.style.border = '1px solid #ff6b6b';
-    openSettingsButton.style.color = '#ff6b6b';
-    openSettingsButton.style.padding = '0.8rem 1.2rem';
-    openSettingsButton.style.fontSize = '1rem';
-    openSettingsButton.style.borderRadius = '50px';
-    openSettingsButton.style.cursor = 'pointer';
-    openSettingsButton.style.transition = 'all 0.3s ease';
-    openSettingsButton.style.display = error && !(error.type === 'location_off') ? 'inline-block' : 'none';
-
-    openSettingsButton.addEventListener('mouseover', () => {
-        openSettingsButton.style.backgroundColor = '#fff0f0';
-    });
-    openSettingsButton.addEventListener('mouseout', () => {
-        openSettingsButton.style.backgroundColor = 'transparent';
-    });
-
-    openSettingsButton.addEventListener('click', () => {
-        // Different instructions for different browsers
-        if (navigator.userAgent.includes('Chrome')) {
-            const settingsUrl = 'chrome://settings/content/siteDetails?site=' + encodeURIComponent(window.location.origin);
-            
-            // Create a temporary input element to copy to clipboard
-            const tempInput = document.createElement('input');
-            tempInput.value = settingsUrl;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            
-            // Show success message
-            const originalText = openSettingsButton.textContent;
-            openSettingsButton.textContent = "Settings URL Copied!";
-            setTimeout(() => {
-                openSettingsButton.textContent = originalText;
-            }, 2000);
-            
-            // Overlay with instructions
-            const instructionsDiv = document.createElement('div');
-            instructionsDiv.style.marginTop = '1rem';
-            instructionsDiv.style.backgroundColor = '#f8f8f8';
-            instructionsDiv.style.padding = '1rem';
-            instructionsDiv.style.borderRadius = '10px';
-            instructionsDiv.style.fontSize = '0.9rem';
-            instructionsDiv.style.color = '#333';
-            instructionsDiv.style.textAlign = 'left';
-            instructionsDiv.innerHTML = `
-                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Chrome:</p>
-                <ol style="margin-left: 1rem; padding-left: 0;">
-                    <li style="margin-bottom: 0.3rem;">Open a new tab</li>
-                    <li style="margin-bottom: 0.3rem;">Paste the copied URL (chrome://settings/content/siteDetails...)</li>
-                    <li style="margin-bottom: 0.3rem;">Find Microphone and Location in the list</li>
-                    <li style="margin-bottom: 0.3rem;">Change each from "Block" to "Allow"</li>
-                    <li>Return to this page and refresh</li>
-                </ol>
-            `;
-            
-            // Only add if it doesn't exist yet
-            if (!document.querySelector('.settings-instructions')) {
-                instructionsDiv.className = 'settings-instructions';
-                card.appendChild(instructionsDiv);
-            }
-        } else if (navigator.userAgent.includes('Firefox')) {
-            const instructionsDiv = document.createElement('div');
-            instructionsDiv.style.marginTop = '1rem';
-            instructionsDiv.style.backgroundColor = '#f8f8f8';
-            instructionsDiv.style.padding = '1rem';
-            instructionsDiv.style.borderRadius = '10px';
-            instructionsDiv.style.fontSize = '0.9rem';
-            instructionsDiv.style.color = '#333';
-            instructionsDiv.style.textAlign = 'left';
-            instructionsDiv.innerHTML = `
-                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Firefox:</p>
-                <ol style="margin-left: 1rem; padding-left: 0;">
-                    <li style="margin-bottom: 0.3rem;">Click the lock icon in the address bar</li>
-                    <li style="margin-bottom: 0.3rem;">Select "Connection secure"</li>
-                    <li style="margin-bottom: 0.3rem;">Click "More Information"</li>
-                    <li style="margin-bottom: 0.3rem;">Go to "Permissions" tab</li>
-                    <li style="margin-bottom: 0.3rem;">Update Microphone and Location access</li>
-                    <li>Refresh the page</li>
-                </ol>
-            `;
-            
-            // Only add if it doesn't exist yet
-            if (!document.querySelector('.settings-instructions')) {
-                instructionsDiv.className = 'settings-instructions';
-                card.appendChild(instructionsDiv);
-            }
-        } else if (navigator.userAgent.includes('Safari')) {
-            const instructionsDiv = document.createElement('div');
-            instructionsDiv.style.marginTop = '1rem';
-            instructionsDiv.style.backgroundColor = '#f8f8f8';
-            instructionsDiv.style.padding = '1rem';
-            instructionsDiv.style.borderRadius = '10px';
-            instructionsDiv.style.fontSize = '0.9rem';
-            instructionsDiv.style.color = '#333';
-            instructionsDiv.style.textAlign = 'left';
-            instructionsDiv.innerHTML = `
-                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Safari:</p>
-                <ol style="margin-left: 1rem; padding-left: 0;">
-                    <li style="margin-bottom: 0.3rem;">Click Safari in the menu bar</li>
-                    <li style="margin-bottom: 0.3rem;">Choose Preferences/Settings</li>
-                    <li style="margin-bottom: 0.3rem;">Go to "Websites" tab</li>
-                    <li style="margin-bottom: 0.3rem;">Find Microphone and Location in the list</li>
-                    <li style="margin-bottom: 0.3rem;">Update permissions for this website</li>
-                    <li>Refresh the page</li>
-                </ol>
-            `;
-            
-            // Only add if it doesn't exist yet
-            if (!document.querySelector('.settings-instructions')) {
-                instructionsDiv.className = 'settings-instructions';
-                card.appendChild(instructionsDiv);
-            }
-        } else {
-            // Generic instructions for other browsers
-            const instructionsDiv = document.createElement('div');
-            instructionsDiv.style.marginTop = '1rem';
-            instructionsDiv.style.backgroundColor = '#f8f8f8';
-            instructionsDiv.style.padding = '1rem';
-            instructionsDiv.style.borderRadius = '10px';
-            instructionsDiv.style.fontSize = '0.9rem';
-            instructionsDiv.style.color = '#333';
-            instructionsDiv.style.textAlign = 'left';
-            instructionsDiv.innerHTML = `
-                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions:</p>
-                <ol style="margin-left: 1rem; padding-left: 0;">
-                    <li style="margin-bottom: 0.3rem;">Look for site information icon in address bar</li>
-                    <li style="margin-bottom: 0.3rem;">Find site permissions settings</li>
-                    <li style="margin-bottom: 0.3rem;">Allow microphone and location access</li>
-                    <li>Refresh the page after changing settings</li>
-                </ol>
-            `;
-            
-            // Only add if it doesn't exist yet
-            if (!document.querySelector('.settings-instructions')) {
-                instructionsDiv.className = 'settings-instructions';
-                card.appendChild(instructionsDiv);
-            }
-        }
-    });
-
-    if (error && !(error.type === 'location_off')) {
-        card.appendChild(openSettingsButton);
-    }
     
     overlay.appendChild(card);
     document.body.appendChild(overlay);
