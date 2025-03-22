@@ -1,109 +1,109 @@
 // Questions data
 const questions = [
     {
-        text: "Can you believe how amazing you are to me?",
+        text: "Can you believe how amazing you are to me? 💗",
         type: "yesno",
         responses: {
-            yes: "Yeah babe, you literally are the most precious gift Allah has given me.",
-            no: "Whaaaat?? Noo!! You literally are the most precious gift Allah has given me."
+            yes: "Yeah babe, you literally are the most precious gift Allah has given me. ❤️",
+            no: "Whaaaat?? Noo!! You literally are the most precious gift Allah has given me. 💖"
         }
     },
     {
-        text: "Would you stay with me forever?",
+        text: "Would you stay with me forever? 💓",
         type: "yesno",
         responses: {
-            yes: "Forever and always, my love.",
-            no: "No? That's not possible, because I'm never letting you go!"
+            yes: "Forever and always, my love❤️",
+            no: "No? That's not possible, because I'm never letting you go! 💗"
         }
     },
     {
-        text: "Do you think that I am not enough for you?",
+        text: "Do you actually love me from the heart? 💖",
         type: "both-no",
         responses: {
-            no: "Just kidding babe hehe, I know you love me!"
+            no: "Just kidding babe hehe, I know you love me! 💓"
         }
     },
     {
-        text: "Do you know you're the reason my world feels perfect?",
+        text: "Do you know you're the reason my world feels perfect? 🦋",
         type: "yesno",
         responses: {
-            yes: "You are the reason my world feels perfect every single day.",
-            no: "Oh come on! You know you're my everything!"
+            yes: "You are the reason my world feels perfect every single day. 💌",
+            no: "Oh come on! You know you're my everything! 💖"
         }
     },
     {
-        text: "Do you love it when I call you my honeybun?",
+        text: "Do you love it when I call you by nicknames like: Honeybun, lovebug etc? 😘",
         type: "yesno",
         responses: {
-            yes: "I knew it! My sweet honeybun deserves all the love!",
-            no: "Oh, don't lie! I know you secretly love it!"
+            yes: "I knew it! My sweet honeybun deserves all the cute nicknames in the world! 💗",
+            no: "Oh, don't lie! I know you secretly love all those adorable names! 😘"
         }
     },
     {
-        text: "Do you think you're the most beautiful girl in the world?",
+        text: "In your opinion, are you the most beautiful girl in the world? 🌹",
         type: "sliding-no",
         responses: {
-            yes: "That's because you truly are, my gorgeous queen."
+            yes: "That's because you truly are, my gorgeous queen. 💮"
         }
     },
     {
-        text: "What's one thing I do that makes you smile every time?",
+        text: "What's one thing I do that makes you smile every time? 🌸",
         type: "text",
         responses: {
             submit: "Your smile is my favorite thing in the world! 🥰"
         }
     },
     {
-        text: "What's something small I do that makes you fall in love with me all over again?",
+        text: "What's something small I do that makes you fall in love with me all over again? 💓",
         type: "text",
         responses: {
             submit: "I'll always do that for you because I love seeing you fall for me over and over again! ❤️"
         }
     },
     {
-        text: "Do you know how hard it is for me to stop staring at you?",
+        text: "Do you know how hard it is for me to stop staring at you? 💖",
         type: "yesno",
         responses: {
-            yes: "It's because you're absolutely mesmerizing.",
-            no: "Liar! You know I can't take my eyes off you!"
+            yes: "It's because you're absolutely mesmerizing. 🦋",
+            no: "Liar! You know I can't take my eyes off you! 😘"
         }
     },
     {
-        text: "Do you think that I am not enough for you?",
+        text: "Would you ever choose anyone over me?",
         type: "force-yes",
         responses: {
-            yes: "Just kidding babe.. i love you hehe"
+            yes: "Just kidding babe.. i love you hehe 💗"
         }
     },
     {
-        text: "What's your favorite thing about me? You can't say everything!",
+        text: "What's your favorite thing about me? You can't say everything! 🌸",
         type: "text",
         responses: {
-            submit: "Aww, you're making me blush! 😊"
+            submit: "I love hearing that... tells me more about you later 😏"
         }
     },
     {
-        text: "Can you guess how many times I've thought about you today?",
+        text: "Can you guess how many times I've thought about you today? 💭",
         type: "multiple",
-        options: ["10 times", "50 times", "1000 times", "Unlimited"],
-        correctAnswer: "Unlimited",
+        options: ["10 times", "50 times", "1000 times", "Countless"],
+        correctAnswer: "Countless",
         responses: {
-            correct: "Exactly! You're always on my mind.",
+            correct: "Exactly! You're always on my mind. 💗",
             incorrect: "NNOOO that's not right babe :)"
         }
     },
     {
-        text: "What's your birthday wish? I promise to make it come true in sha Allah.",
+        text: "What's your birthday wish? I promise to make it come true in sha Allah. 💌",
         type: "text",
         responses: {
             submit: "I'll do my best to make your wish come true! ❤️"
         }
     },
     {
-        text: "How many hugs and kisses are you ready to receive today?",
+        text: "How many hugs and kisses are you ready to receive today? 😘",
         type: "text",
         responses: {
-            submit: "I'll note them down and give them to you after our marriage hehe 😘"
+            submit: "I'll note them down and give them to you after our marriage hehe 😘 😏"
         }
     }
 ];
@@ -1731,12 +1731,12 @@ function handleCakeInteraction(cakeContainer) {
         
         // Show a celebration message
         const celebrationMsg = document.createElement('div');
-        celebrationMsg.textContent = "Yay! All candles blown! Make a wish! 🎂✨";
+        celebrationMsg.textContent = "Yay! All candles blown! Make a wish! 🎂✨💫";
         celebrationMsg.className = 'celebration-message';
         celebrationMsg.style.zIndex = '2000'; // Ensure message is on top
         cakeContainer.appendChild(celebrationMsg);
         
-        // Keep the cake and message visible for longer (7 seconds total)
+        // Keep the cake and message visible for longer (4 seconds total)
         setTimeout(() => {
             celebrationMsg.style.animation = 'fadeOut 2s forwards';
             cakeContainer.style.animation = 'fadeOut 2s forwards';
@@ -1744,7 +1744,7 @@ function handleCakeInteraction(cakeContainer) {
                 cakeContainer.remove();
                 showFinalCongrats();
             }, 2000);
-        }, 7000); // Increased from 4000 to 7000 for 3 more seconds
+        }, 4000); // Decreased from 7000 to 4000 (reduced by 3 seconds)
     }
 }
 
@@ -1850,9 +1850,10 @@ window.addEventListener('unload', () => {
 
 // Add the showFinalCongrats function
 function showFinalCongrats() {
-    questionText.textContent = "Happy Birthday to the love of my life! 🎉";
-    responseText.textContent = "You make my world brighter, my heart fuller, and my life so much better. I love you more than words can ever express! ❤️";
+    questionText.textContent = "Happy Birthday Sheho! 🎉💮🦋";
+    responseText.textContent = "Shehomim, from the moment you stepped into my life, everything became brighter, warmer, and more beautiful—just like you. You are the most precious person in my world. Every heartbeat of mine whispers your name, and every moment with you feels like a dream I never want to end. 💕\nI promise you, my love, that no matter where life takes us, I will always hold your hand, cherish you, and love you with everything I have. In Sha Allah, one day, I will make you mine forever. Until then, I will keep falling for you, over and over again. 💗🌸\nHappy Birthday, Sheho🖤\nYours, forever and always, 💌\nSadman";
     responseText.classList.add('show');
+    responseText.style.whiteSpace = 'pre-line'; // Preserve line breaks
     createConfetti();
     
     // Create a close website button
@@ -2086,7 +2087,7 @@ function createCake() {
     // Add message
     const message = document.createElement('p');
     message.className = 'cake-message';
-    message.textContent = 'Click the candles or blow on the microphone to make a wish! 🎂';
+    message.textContent = 'Click the candles or blow on the microphone to make a wish! 🎂❤️';
     cakeContainer.appendChild(message);
     
     return cakeContainer;

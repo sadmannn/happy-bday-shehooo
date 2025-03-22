@@ -10,9 +10,10 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Instructions for the best experience:
   - Finding a comfy spot
   - Microphone and location access required for the full interactive experience
-  - Getting ready to smile
-  - Important note about using the "Close Website" button at the end
+  - Getting ready to smile (with smirk emoji 😏)
+  - Important note about using the "Close Website" button at the end and not switching to any app during use
 - Stylish "Start the Fun! ✨" button with hover effects
+- Overall container scaled to 95% of the original size for optimized viewing experience
 
 ### Question System
 
@@ -21,28 +22,34 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
    - Standard yes/no options
    - Romantic responses for each choice
    - Special animations for positive answers
+   - Lovely emojis (❤️🦋🌸💮🌹😘💌💓💖💗) enhancing the romantic feel
 
 2. **Sliding No Questions**
    - "No" button playfully moves away when hovered
    - Forces positive interactions
    - Encouraging messages
+   - Decorative emojis adding charm
 
 3. **Both-No Questions**
    - Special questions with two "No" options
    - Playful responses regardless of choice
+   - Heart emojis for extra romance
 
 4. **Force-Yes Questions**
    - Questions designed for positive affirmation
    - Playful interactions
+   - Sweet emojis reinforcing the romantic tone
 
 5. **Text Input Questions**
    - Personal, open-ended questions
    - Heartfelt responses to user input
    - Stores responses locally
+   - Floral and butterfly emojis adding visual charm
 
 6. **Multiple Choice Questions**
    - Pre-defined options
    - Special responses for correct/incorrect answers
+   - Love-themed emojis enhancing the experience
 
 #### Detailed Questions List
 1. "Can you believe how amazing you are to me?"
@@ -55,11 +62,11 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 2. "Would you stay with me forever?"
    - Type: Yes/No
    - Responses:
-     - Yes: "Forever and always, my love."
+     - Yes: "Forever and always, my love❤️"
      - No: "No? That's not possible, because I'm never letting you go!"
    - Features: Multiple animations on positive response
 
-3. "Do you think that I am not enough for you?"
+3. "Do you actually love me from the heart?"
    - Type: Both-No
    - Response: "Just kidding babe hehe, I know you love me!"
    - Features: Butterfly and sparkle animations
@@ -70,16 +77,16 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
      - Yes: "You are the reason my world feels perfect every single day."
      - No: "Oh come on! You know you're my everything!"
 
-5. "Do you love it when I call you my honeybun?"
+5. "Do you love it when I call you by nicknames like: Honeybun, lovebug etc?"
    - Type: Yes/No
    - Responses:
-     - Yes: "I knew it! My sweet honeybun deserves all the love!"
-     - No: "Oh, don't lie! I know you secretly love it!"
+     - Yes: "I knew it! My sweet honeybun deserves all the cute nicknames in the world!"
+     - No: "Oh, don't lie! I know you secretly love all those adorable names!"
 
-6. "Do you think you're the most beautiful girl in the world?"
+6. "In your opinion, are you the most beautiful girl in the world?"
    - Type: Sliding-No
    - Response: "That's because you truly are, my gorgeous queen."
-   - Features: "No" button playfully slides away
+   - Features: "No" button playfully slides away when attempted to click
 
 7. "What's one thing I do that makes you smile every time?"
    - Type: Text Input
@@ -97,19 +104,20 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
      - Yes: "It's because you're absolutely mesmerizing."
      - No: "Liar! You know I can't take my eyes off you!"
 
-10. "Do you think that I am not enough for you?"
+10. "Would you ever choose anyone over me?"
     - Type: Force-Yes
     - Response: "Just kidding babe.. i love you hehe"
+    - Features: Forces positive interaction
 
 11. "What's your favorite thing about me? You can't say everything!"
     - Type: Text Input
-    - Response: "Aww, you're making me blush! 😊"
+    - Response: "I love hearing that... tells me more about you later 😏"
     - Features: Stores response locally
 
 12. "Can you guess how many times I've thought about you today?"
     - Type: Multiple Choice
-    - Options: ["10 times", "50 times", "1000 times", "Unlimited"]
-    - Correct Answer: "Unlimited"
+    - Options: ["10 times", "50 times", "1000 times", "Countless"]
+    - Correct Answer: "Countless"
     - Responses:
       - Correct: "Exactly! You're always on my mind."
       - Incorrect: "NNOOO that's not right babe :)"
@@ -121,7 +129,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 
 14. "How many hugs and kisses are you ready to receive today?"
     - Type: Text Input
-    - Response: "I'll note them down and give them to you after our marriage hehe 😘"
+    - Response: "I'll note them down and give them to you after our marriage hehe 😘 😏"
     - Features: Stores response locally
 
 ### Interactive Birthday Cake Feature
@@ -131,6 +139,7 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Five interactive candles with realistic flame animations
 - Smooth wobble animation for realistic cake movement
 - Decorative elements and shadows for depth
+- Heart emoji enhanced cake messages
 
 #### Candle Interaction Methods
 1. **Microphone Blowing Detection**
@@ -159,10 +168,19 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
 - Grand finale when all candles are blown:
   - Multiple animation types trigger
   - Hearts, sparkles, and confetti
-  - Special celebration message
+  - Special celebration message enhanced with festive emojis
+  - Optimized 4-second viewing time before transition (reduced from 7 seconds for better pacing)
   - Fade-out transition to final congratulations
 
 ### Final Screen and Close Functionality
+
+#### Personalized Birthday Message
+- Beautiful heartfelt message from Sadman to Sheho
+- Elegantly formatted with preserved line breaks
+- Emotional content expressing love and future promises
+- Personal signature closing the message
+- Special birthday wish with heart and butterfly emojis
+- Enhanced with romantic symbols (💕💗🌸💌) throughout the message
 
 #### Close Website Button
 - Dedicated "Close Website & Save All Responses" button
