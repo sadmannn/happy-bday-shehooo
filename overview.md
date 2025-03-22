@@ -262,17 +262,19 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Allows for immediate visual location verification
 
 #### Permission Handling
-- **Combined Permission Request**: 
-  - Requests both microphone and location permissions simultaneously
+- **Sequential Permission Request**: 
+  - Browser's native permission dialogs appear first when starting
+  - Custom permission card shown only if permissions are denied
   - Clear user messaging about required permissions
   - Prevents continuation without both permissions granted
 - **Enhanced Permission Card**: 
   - Shows helpful permission request overlay if initial permission is denied
   - Provides clear explanation of why permissions are needed
   - Easy one-click button to grant all required permissions
-  - Intelligent detection of already-granted permissions
   - Visual instructions image showing how to reset browser permissions
+  - Intelligent detection of already-granted permissions
   - Specific handling for disabled device location on mobile devices
+  - Browser compatibility detection and guidance
   - Prevents redundant permission requests once granted
 
 #### Secure Data Transmission

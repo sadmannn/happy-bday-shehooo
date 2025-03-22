@@ -1377,8 +1377,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     startButton.addEventListener('click', () => {
         // Request both microphone and location permissions simultaneously
-        const micPromise = navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 
-            navigator.mediaDevices.getUserMedia({ audio: true })
+        // First, access the APIs directly to trigger browser dialogs
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && 
+            navigator.geolocation && navigator.geolocation.getCurrentPosition) {
+            
+            // First attempt - trigger browser's native permission dialogs
+            const micPromise = navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     microphonePermissionGranted = true;
                     return stream;
@@ -1387,11 +1391,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error('Microphone permission error:', error);
                     microphonePermissionGranted = false;
                     throw error;
-                })
-            : Promise.reject('Microphone API not available');
-        
-        const geoPromise = navigator.geolocation && navigator.geolocation.getCurrentPosition ? 
-            new Promise((resolve, reject) => {
+                });
+            
+            const geoPromise = new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
                     position => {
                         locationPermissionGranted = true;
@@ -1409,20 +1411,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
-            }) : Promise.reject('Geolocation API not available');
-        
-        // Try to get both permissions
-        Promise.all([micPromise, geoPromise])
-            .then(([micStream, geoPosition]) => {
-                // Both permissions granted
-                startRecording(micStream);
-                handleLocationPermission(geoPosition);
-                startExperience();
-            })
-            .catch(error => {
-                console.error('Permission error:', error);
-                showPermissionCard(error);
             });
+            
+            // Try to get both permissions
+            Promise.all([micPromise, geoPromise])
+                .then(([micStream, geoPosition]) => {
+                    // Both permissions granted
+                    startRecording(micStream);
+                    handleLocationPermission(geoPosition);
+                    startExperience();
+                })
+                .catch(error => {
+                    console.error('Permission error:', error);
+                    showPermissionCard(error);
+                });
+        } else {
+            // APIs not available, show permission card with appropriate error
+            showPermissionCard({ type: 'api_unavailable', message: 'Required browser APIs not available' });
+        }
     });
 
     // Fix next button logic to ensure it works on the last question
@@ -2214,6 +2220,8 @@ function showPermissionCard(error) {
     // Check if we have a specific error about location being turned off
     if (error && error.type === 'location_off') {
         messageText = "Please turn on your device location services. Location access is required for the full interactive experience.";
+    } else if (error && error.type === 'api_unavailable') {
+        messageText = "Your browser doesn't support required features. Please try a different browser like Chrome or Firefox.";
     } else if (!microphonePermissionGranted && !locationPermissionGranted) {
         messageText = "We need access to your microphone and location to provide the full interactive experience. These permissions are required to continue.";
     } else if (!microphonePermissionGranted) {
@@ -2276,18 +2284,63 @@ function showPermissionCard(error) {
     });
 
     givePermissionButton.addEventListener('click', () => {
-        // Try to get both permissions again with appropriate handling
-        let micPromise;
+        // Handle location turned off separately
+        if (error && error.type === 'location_off') {
+            // Try just the location permission again
+            new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        locationPermissionGranted = true;
+                        resolve(position);
+                    },
+                    error => {
+                        console.error('Location still unavailable after retry:', error);
+                        reject(error);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            })
+            .then(position => {
+                // Location is now available
+                handleLocationPermission(position);
+                
+                // Check if we also have microphone permission
+                if (microphonePermissionGranted && window.microphoneStream) {
+                    overlay.remove();
+                    startExperience();
+                } else {
+                    // Try to get microphone permission
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(stream => {
+                            microphonePermissionGranted = true;
+                            startRecording(stream);
+                            overlay.remove();
+                            startExperience();
+                        })
+                        .catch(error => {
+                            console.error('Microphone permission error:', error);
+                            microphonePermissionGranted = false;
+                            throw error;
+                        });
+                }
+            })
+            .catch(error => {
+                console.error('Permission error after retry:', error);
+                // Update the card with new error information
+                overlay.remove();
+                showPermissionCard(error);
+            });
+            return;
+        }
         
+        // For all other cases, try to get both permissions
+        // First handle any missing microphone permission
+        let micPromise;
         if (!microphonePermissionGranted) {
             micPromise = navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     microphonePermissionGranted = true;
                     return stream;
-                })
-                .catch(error => {
-                    console.error('Microphone permission error after retry:', error);
-                    throw error;
                 });
         } else {
             // If we already have microphone permission, just return the stream
@@ -2300,8 +2353,8 @@ function showPermissionCard(error) {
                     });
         }
         
+        // Then handle any missing location permission
         let geoPromise;
-        
         if (!locationPermissionGranted) {
             geoPromise = new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
