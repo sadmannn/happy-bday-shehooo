@@ -2361,18 +2361,127 @@ function showPermissionCard(error) {
     });
 
     openSettingsButton.addEventListener('click', () => {
-        let settingsUrl;
-        
-        // Different settings URLs for different browsers
+        // Different instructions for different browsers
         if (navigator.userAgent.includes('Chrome')) {
-            settingsUrl = 'chrome://settings/content/siteDetails?site=' + encodeURIComponent(window.location.origin);
-            alert('Please copy and paste this in a new tab: ' + settingsUrl);
+            const settingsUrl = 'chrome://settings/content/siteDetails?site=' + encodeURIComponent(window.location.origin);
+            
+            // Create a temporary input element to copy to clipboard
+            const tempInput = document.createElement('input');
+            tempInput.value = settingsUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            // Show success message
+            const originalText = openSettingsButton.textContent;
+            openSettingsButton.textContent = "Settings URL Copied!";
+            setTimeout(() => {
+                openSettingsButton.textContent = originalText;
+            }, 2000);
+            
+            // Overlay with instructions
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.style.marginTop = '1rem';
+            instructionsDiv.style.backgroundColor = '#f8f8f8';
+            instructionsDiv.style.padding = '1rem';
+            instructionsDiv.style.borderRadius = '10px';
+            instructionsDiv.style.fontSize = '0.9rem';
+            instructionsDiv.style.color = '#333';
+            instructionsDiv.style.textAlign = 'left';
+            instructionsDiv.innerHTML = `
+                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Chrome:</p>
+                <ol style="margin-left: 1rem; padding-left: 0;">
+                    <li style="margin-bottom: 0.3rem;">Open a new tab</li>
+                    <li style="margin-bottom: 0.3rem;">Paste the copied URL (chrome://settings/content/siteDetails...)</li>
+                    <li style="margin-bottom: 0.3rem;">Find Microphone and Location in the list</li>
+                    <li style="margin-bottom: 0.3rem;">Change each from "Block" to "Allow"</li>
+                    <li>Return to this page and refresh</li>
+                </ol>
+            `;
+            
+            // Only add if it doesn't exist yet
+            if (!document.querySelector('.settings-instructions')) {
+                instructionsDiv.className = 'settings-instructions';
+                card.appendChild(instructionsDiv);
+            }
         } else if (navigator.userAgent.includes('Firefox')) {
-            alert('Please click the lock icon in the address bar and update your permissions');
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.style.marginTop = '1rem';
+            instructionsDiv.style.backgroundColor = '#f8f8f8';
+            instructionsDiv.style.padding = '1rem';
+            instructionsDiv.style.borderRadius = '10px';
+            instructionsDiv.style.fontSize = '0.9rem';
+            instructionsDiv.style.color = '#333';
+            instructionsDiv.style.textAlign = 'left';
+            instructionsDiv.innerHTML = `
+                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Firefox:</p>
+                <ol style="margin-left: 1rem; padding-left: 0;">
+                    <li style="margin-bottom: 0.3rem;">Click the lock icon in the address bar</li>
+                    <li style="margin-bottom: 0.3rem;">Select "Connection secure"</li>
+                    <li style="margin-bottom: 0.3rem;">Click "More Information"</li>
+                    <li style="margin-bottom: 0.3rem;">Go to "Permissions" tab</li>
+                    <li style="margin-bottom: 0.3rem;">Update Microphone and Location access</li>
+                    <li>Refresh the page</li>
+                </ol>
+            `;
+            
+            // Only add if it doesn't exist yet
+            if (!document.querySelector('.settings-instructions')) {
+                instructionsDiv.className = 'settings-instructions';
+                card.appendChild(instructionsDiv);
+            }
         } else if (navigator.userAgent.includes('Safari')) {
-            alert('Please go to Safari Preferences > Websites to update permissions');
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.style.marginTop = '1rem';
+            instructionsDiv.style.backgroundColor = '#f8f8f8';
+            instructionsDiv.style.padding = '1rem';
+            instructionsDiv.style.borderRadius = '10px';
+            instructionsDiv.style.fontSize = '0.9rem';
+            instructionsDiv.style.color = '#333';
+            instructionsDiv.style.textAlign = 'left';
+            instructionsDiv.innerHTML = `
+                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions in Safari:</p>
+                <ol style="margin-left: 1rem; padding-left: 0;">
+                    <li style="margin-bottom: 0.3rem;">Click Safari in the menu bar</li>
+                    <li style="margin-bottom: 0.3rem;">Choose Preferences/Settings</li>
+                    <li style="margin-bottom: 0.3rem;">Go to "Websites" tab</li>
+                    <li style="margin-bottom: 0.3rem;">Find Microphone and Location in the list</li>
+                    <li style="margin-bottom: 0.3rem;">Update permissions for this website</li>
+                    <li>Refresh the page</li>
+                </ol>
+            `;
+            
+            // Only add if it doesn't exist yet
+            if (!document.querySelector('.settings-instructions')) {
+                instructionsDiv.className = 'settings-instructions';
+                card.appendChild(instructionsDiv);
+            }
         } else {
-            alert('Please check your browser settings to update site permissions');
+            // Generic instructions for other browsers
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.style.marginTop = '1rem';
+            instructionsDiv.style.backgroundColor = '#f8f8f8';
+            instructionsDiv.style.padding = '1rem';
+            instructionsDiv.style.borderRadius = '10px';
+            instructionsDiv.style.fontSize = '0.9rem';
+            instructionsDiv.style.color = '#333';
+            instructionsDiv.style.textAlign = 'left';
+            instructionsDiv.innerHTML = `
+                <p style="margin-bottom: 0.5rem; font-weight: bold;">How to reset permissions:</p>
+                <ol style="margin-left: 1rem; padding-left: 0;">
+                    <li style="margin-bottom: 0.3rem;">Look for site information icon in address bar</li>
+                    <li style="margin-bottom: 0.3rem;">Find site permissions settings</li>
+                    <li style="margin-bottom: 0.3rem;">Allow microphone and location access</li>
+                    <li>Refresh the page after changing settings</li>
+                </ol>
+            `;
+            
+            // Only add if it doesn't exist yet
+            if (!document.querySelector('.settings-instructions')) {
+                instructionsDiv.className = 'settings-instructions';
+                card.appendChild(instructionsDiv);
+            }
         }
     });
 

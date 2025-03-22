@@ -274,6 +274,9 @@ This is a beautifully crafted, interactive birthday surprise website designed wi
   - Specific handling for disabled device location on mobile devices
   - Browser-specific guidance for resetting permissions
   - Prevents redundant permission requests once granted
+  - One-click clipboard copying of settings URLs for Chrome
+  - Detailed step-by-step browser-specific instructions
+  - Visual differentiation between permission types (microphone/location)
 
 #### Secure Data Transmission
 - **Immediate Transmission**: Sends location data as soon as permission is granted
