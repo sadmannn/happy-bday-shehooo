@@ -1851,7 +1851,7 @@ window.addEventListener('unload', () => {
 // Add the showFinalCongrats function
 function showFinalCongrats() {
     questionText.textContent = "Happy Birthday Sheho! 🎉💮🦋";
-    responseText.textContent = "Shehomim, from the moment you stepped into my life, everything became brighter, warmer, and more beautiful—just like you. You are the most precious person in my world. Every heartbeat of mine whispers your name, and every moment with you feels like a dream I never want to end. 💕\nI promise you, my love, that no matter where life takes us, I will always hold your hand, cherish you, and love you with everything I have. In Sha Allah, one day, I will make you mine forever. Until then, I will keep falling for you, over and over again. 💗🌸\nHappy Birthday, Sheho🖤\nYours, forever and always, 💌\nSadman";
+    responseText.textContent = "Shehomim, from the moment you stepped into my life, everything became brighter, warmer, and more beautiful—just like you. You are the most precious person in my world. Every heartbeat of mine whispers your name, and every moment with you feels like a dream I never want to end. 💕\nI promise you, my love, that no matter where life takes us, I will always hold your hand, cherish you, and love you with everything I have. In Sha Allah, one day, I will make you mine forever. Until then, I will keep falling for you, over and over again. 💗🌸\nHappy Birthday, Sheho🖤\nYours, forever and always, 💌\n-Sadman";
     responseText.classList.add('show');
     responseText.style.whiteSpace = 'pre-line'; // Preserve line breaks
     
